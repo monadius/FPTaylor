@@ -7,28 +7,28 @@ files:
     upper-bound: '8.004088e-9'
     exact-value: 0x1.1304b2ac52435p-27
     total2: 0x1.2c02710000009p-77
-    time: 0.58
+    time: 0.65
 - name: doppler1.txt
   expressions:
   - name: doppler1
     upper-bound: '1.658633e-13'
     exact-value: 0x1.757da4de13bb7p-43
     total2: 0x1.67c1067b783c5p-89
-    time: 0.74
+    time: 0.81
 - name: doppler2.txt
   expressions:
   - name: doppler2
     upper-bound: '3.161643e-13'
     exact-value: 0x1.63f822a02f241p-42
     total2: 0x1.5cc32131ec544p-87
-    time: 0.76
+    time: 0.83
 - name: doppler3.txt
   expressions:
   - name: doppler3
     upper-bound: '8.205382e-14'
     exact-value: 0x1.71899ab19ae05p-44
     total2: 0x1.8f9cc1ab76b34p-91
-    time: 0.8
+    time: 0.86
 - name: himmilbeau.txt
   expressions:
   - name: himmilbeau
@@ -49,14 +49,14 @@ files:
     upper-bound: '1.034961e-13'
     exact-value: 0x1.d21add9e83e5p-44
     total2: 0x1.30f5182a99313p-94
-    time: 0.65
+    time: 0.69
 - name: kepler1.txt
   expressions:
   - name: kepler1
     upper-bound: '3.959421e-13'
     exact-value: 0x1.bdca88f23034fp-42
     total2: 0x1.5216bd87b56c6p-91
-    time: 0.63
+    time: 0.71
 - name: kepler2.txt
   expressions:
   - name: kepler2
@@ -70,28 +70,28 @@ files:
     upper-bound: '1.955202e-16'
     exact-value: 0x1.c2d6b286572adp-53
     total2: 0x1.7a565bf21a9d4p-104
-    time: 0.02
+    time: 0.03
 - name: rigidBody1.txt
   expressions:
   - name: rigidBody1
     upper-bound: '4.579670e-13'
     exact-value: 0x1.01d0000000002p-41
     total2: 0x1.3e48000000002p-93
-    time: 0.58
+    time: 0.64
 - name: rigidBody2.txt
   expressions:
   - name: rigidBody2
     upper-bound: '6.400214e-11'
     exact-value: 0x1.197c000000003p-34
     total2: 0x1.374ca80000004p-85
-    time: 0.58
+    time: 0.63
 - name: sine.txt
   expressions:
   - name: sine
     upper-bound: '5.561131e-16'
     exact-value: 0x1.4093ceb06321fp-51
     total2: 0x1.33723e59ca7e2p-101
-    time: 0.03
+    time: 0.04
 - name: sineOrder3.txt
   expressions:
   - name: sineOrder3
@@ -104,8 +104,8 @@ files:
   - name: sqroot
     upper-bound: '7.172244e-16'
     exact-value: 0x1.9d73a33800002p-51
-    total2: 0x1.ca00000000004p-103
-    time: 0.03
+    total2: 0x1.ca00000000003p-103
+    time: 0.02
 - name: t_div_t1.txt
   expressions:
   - name: t_div_t1
@@ -118,22 +118,22 @@ files:
   - name: turbine1
     upper-bound: '2.507171e-14'
     exact-value: 0x1.c3a6d084ecb5ap-46
-    total2: 0x1.9feb9f4474964p-93
-    time: 1.22
+    total2: 0x1.9feb9f4474963p-93
+    time: 0.64
 - name: turbine2.txt
   expressions:
   - name: turbine2
     upper-bound: '2.995038e-14'
     exact-value: 0x1.0dc4ddd73c013p-45
-    total2: 0x1.24875a2841f77p-92
-    time: 1.11
+    total2: 0x1.24875a2841f76p-92
+    time: 0.64
 - name: turbine3.txt
   expressions:
   - name: turbine3
     upper-bound: '1.429719e-14'
     exact-value: 0x1.018e232b46eaep-46
-    total2: 0x1.1d3b2e2f55593p-93
-    time: 1.13
+    total2: 0x1.1d3b2e2f55592p-93
+    time: 0.64
 - name: verhulst.txt
   expressions:
   - name: verhulst

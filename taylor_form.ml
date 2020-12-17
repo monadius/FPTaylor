@@ -289,7 +289,7 @@ let var_rnd_form cs rnd e =
         [err_expr, mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp] in
       {
         v0 = e;
-        v1 = v1_uncertainty @ v1_rnd;
+        v1 = merge cs v1_uncertainty v1_rnd;
       }
   | _ -> failwith ("var_rnd_form: not a variable" ^ ExprOut.Info.print_str e)
 
@@ -298,7 +298,7 @@ let rounded_form cs original_expr rnd f =
   Log.report `Debug "rounded_form";
   if rnd.eps_exp = 0 then {
     v0 = f.v0;
-    v1 = f.v1 @ [mk_float_const rnd.coefficient, mk_err_var (-1) rnd.delta_exp]
+    v1 = merge cs [mk_float_const rnd.coefficient, mk_err_var (-1) rnd.delta_exp] f.v1;
   }
   else
     let i = find_index original_expr in
