@@ -23,6 +23,7 @@ fptaylor_base = os.path.normpath(os.path.join(base_path, ".."))
 fptaylor_tmp = os.path.join(tmp_base_path, "tmp_fptaylor")
 fptaylor_log = os.path.join(tmp_base_path, "log_export_fptaylor")
 fptaylor = os.path.join(fptaylor_base, "fptaylor")
+fptaylor_export = os.path.join(fptaylor_base, "export")
 
 gappa = os.path.expanduser(os.path.normpath("~/Work/tools/gappa-1.3.1/src/gappa"))
 
@@ -151,12 +152,8 @@ class GappaTask:
 
 out_file = os.path.join(tmp_path, basename(args.input) + ".fpcore")
 
-cmd = [fptaylor, args.input, 
-       "--fpcore-out", out_file,
-       "--log-base-dir", fptaylor_log,
-       "--log-append-date", "none",
-       "--tmp-base-dir", fptaylor_tmp,
-       "--tmp-date", "false",
+cmd = [fptaylor_export, args.input,
+       "-o", out_file,
        "-v", str(args.verbosity)]
 
 rnd_types = {

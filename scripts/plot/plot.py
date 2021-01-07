@@ -26,6 +26,7 @@ fptaylor_base = os.path.normpath(os.path.join(base_path, "..", ".."))
 fptaylor_tmp = os.path.join(tmp_path, "tmp_fptaylor")
 fptaylor_log = os.path.join(tmp_path, "log_fptaylor")
 fptaylor = os.path.join(fptaylor_base, "fptaylor")
+fptaylor_export = os.path.join(fptaylor_base, "export")
 
 error_bounds_path = os.path.normpath(
     os.path.join(base_path, "..", "..", "..", "..", "ErrorBounds"))
@@ -568,11 +569,8 @@ class InputFileTask:
     
     def create_fpcore_file(self, fname):
         out_file = os.path.join(plot_tmp, basename(fname) + ".fpcore")
-        cmd = [fptaylor, fname,
-               "--fpcore-out", out_file,
-               "--tmp-base-dir", fptaylor_tmp,
-               "--log-base-dir", fptaylor_log,
-               "--log-append-date", "none",
+        cmd = [fptaylor_export, fname,
+               "-o", out_file,
                "-v", str(args.verbosity)]
 
         rnd_types = {
