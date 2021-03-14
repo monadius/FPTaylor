@@ -42,7 +42,7 @@ jobs:
         make requirements
         make
     - name: Build FPTaylor
-      run: make
+      run: eval $(opam env) && make
     - name: Run basic tests
       run: |
         grep opt -C 3 default.cfg
