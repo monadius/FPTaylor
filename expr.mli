@@ -41,6 +41,7 @@ type bin_op_type =
   | Op_nat_pow
   | Op_sub2
   | Op_abs_err
+  | Op_intersect
 
 type gen_op_type =
   | Op_fma
@@ -102,6 +103,7 @@ val mk_sub2 : expr -> expr -> expr
 val mk_abs_err : expr -> expr -> expr
 val mk_floor_power2 : expr -> expr
 val mk_floor_sub2 : expr -> expr -> expr
+val mk_intersect : expr -> expr -> expr
 
 val mk_ulp : int * int -> expr -> expr
                                         

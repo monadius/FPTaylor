@@ -534,8 +534,10 @@ let compute_form task =
       Log.report `Important "Simplifying Taylor forms...";
       let form = simplify_form cs form' in
       Log.report `Important "success";
+      Log.report `Important "form bounds: %s" (sprintf_I "%f" form.bounds);
       let form = 
         if Config.get_bool_option "maxima-simplification" then {
+          form with
           v0 = Maxima.simplify task form.v0;
           v1 = List.map (fun (e, err) -> (if err.index < 0 then e else Maxima.simplify task e), err) form.v1;
         }

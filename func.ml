@@ -113,4 +113,13 @@ let abs_err_I (t, x) =
   else if x.high <= t.low then neg_one_I
   else neg_one_one_I
 
+let intersect (a, b) = a
+
+let intersect_I (a, b) = 
+  let x = max a.low b.low in
+  let y = min a.high b.high in
+  if x > y then
+    failwith "intersect_I: x > y"
+  else
+    { low = x; high = y }
 

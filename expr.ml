@@ -42,6 +42,7 @@ type bin_op_type =
   | Op_nat_pow
   | Op_sub2
   | Op_abs_err
+  | Op_intersect
 
 type gen_op_type =
   | Op_fma
@@ -99,7 +100,8 @@ let mk_const c = Const c and
   mk_fma a b c = Gen_op (Op_fma, [a; b; c]) and
   mk_sub2 a b = Bin_op (Op_sub2, a, b) and
   mk_abs_err t x = Bin_op (Op_abs_err, t, x) and
-  mk_floor_power2 a = U_op (Op_floor_power2, a)
+  mk_floor_power2 a = U_op (Op_floor_power2, a) and
+  mk_intersect a b = Bin_op (Op_intersect, a, b)
 
 let mk_ulp (prec, e_min) x = 
   let p = mk_const (Const.of_int prec) in
@@ -151,6 +153,7 @@ let bin_op_name = function
   | Op_nat_pow -> "^" 
   | Op_sub2 -> "sub2"
   | Op_abs_err -> "abs_err"
+  | Op_intersect -> "intersect"
 
 let gen_op_name = function
   | Op_fma -> "fma"

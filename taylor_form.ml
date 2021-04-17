@@ -25,11 +25,13 @@ type error_info = {
 }
 
 type taylor_form = {
+  bounds : interval;
   v0 : expr;
   v1 : (expr * error_info) list;
 }
 
 let dummy_tform = {
+  bounds = zero_I;
   v0 = const_0;
   v1 = [];
 }
@@ -182,7 +184,8 @@ let find_index, expr_for_index, reset_index_counter, current_index =
 let const_form e = 
   Log.report `Debug "const_form";
   match e with
-  | Const _ -> {
+  | Const c -> {
+      bounds = Const.to_interval c;
       v0 = e;
       v1 = []
     }
@@ -212,6 +215,8 @@ let precise_const_rnd_form rnd e =
         (ExprOut.Info.print_str e)
         (ExprOut.Info.print_str err_expr);
       {
+        (* TODO: bounds: float64 only *)
+        bounds = Const.to_interval c;
         v0 = e;
         v1 = [err_expr, err]
       }
@@ -239,6 +244,8 @@ let const_rnd_form rnd e =
           (ExprOut.Info.print_str e) 
           (ExprOut.Info.print_str err_expr);
         {
+          (* TODO: bounds: float64 only *)
+          bounds = Const.to_interval c;
           v0 = e;
           v1 = [err_expr, err]
         }
@@ -257,6 +264,7 @@ let var_form cs e =
   Log.report `Debug "var_form";
   match e with
   | Var v -> {
+      bounds = cs.var_interval v;
       v0 = e;
       (* FIXME: what is the right value of eps_exp here? *)
       v1 = if Config.get_bool_option "uncertainty" then get_var_uncertainty cs (-53) v else [];
@@ -288,6 +296,8 @@ let var_rnd_form cs rnd e =
         (* TODO: subnormal values of variables *)
         [err_expr, mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp] in
       {
+        (* TODO: bounds: float64 only *)
+        bounds = cs.var_interval v;
         v0 = e;
         v1 = merge cs v1_uncertainty v1_rnd;
       }
@@ -297,6 +307,7 @@ let var_rnd_form cs rnd e =
 let rounded_form cs original_expr rnd f =
   Log.report `Debug "rounded_form";
   if rnd.eps_exp = 0 then {
+    bounds = f.bounds;
     v0 = f.v0;
     v1 = merge cs [mk_float_const rnd.coefficient, mk_err_var (-1) rnd.delta_exp] f.v1;
   }
@@ -306,7 +317,13 @@ let rounded_form cs original_expr rnd f =
     let s1 = get_eps exp1 *^ s1' in
     let r', m2' =
       if Config.get_bool_option "fp-power2-model" then
-        mk_floor_power2 (mk_add f.v0 (mk_sym_interval_const s1)),
+        let e = mk_add f.v0 (mk_sym_interval_const s1) in
+        let e =
+          if Config.get_bool_option "intersect" then
+            mk_intersect e (mk_interval_const f.bounds)
+          else
+            e in
+        mk_floor_power2 e,
         get_eps rnd.delta_exp /. get_eps rnd.eps_exp
       else
         f.v0, 
@@ -319,6 +336,8 @@ let rounded_form cs original_expr rnd f =
     let r_err = mk_err_var i rnd.eps_exp and
         m2_err = mk_err_var (-1) rnd.eps_exp in
     {
+      (* TODO: bounds: float64 only *)
+      bounds = f.bounds;
       v0 = f.v0;
       v1 = merge cs [mk_float_const m2, m2_err; r, r_err] f.v1
     }
@@ -327,6 +346,7 @@ let rounded_form cs original_expr rnd f =
 let neg_form f = 
   Log.report `Debug "neg_form";
   {
+    bounds = ~-$ (f.bounds);
     v0 = mk_neg f.v0;
     v1 = List.map (fun (e, err) -> mk_neg e, err) f.v1;
   }
@@ -335,6 +355,7 @@ let neg_form f =
 let add_form cs f1 f2 = 
   Log.report `Debug "add_form";
   {
+    bounds = f1.bounds +$ f2.bounds;
     v0 = mk_add f1.v0 f2.v0;
     v1 = merge cs f1.v1 f2.v1;
   }
@@ -343,6 +364,7 @@ let add_form cs f1 f2 =
 let sub_form cs f1 f2 =
   Log.report `Debug "sub_form";
   {
+    bounds = f1.bounds -$ f2.bounds;
     v0 = mk_sub f1.v0 f2.v0;
     v1 = merge cs f1.v1 (List.map (fun (e, err) -> mk_neg e, err) f2.v1);
   }
@@ -364,6 +386,7 @@ let rounded_sub_form cs original_expr rnd f1 f2 =
       mk_mul (mk_float_const rnd.coefficient) r' in
   let r_err = mk_err_var i rnd.eps_exp in
   {
+    bounds = f1.bounds -$ f2.bounds;
     v0 = mk_sub f1.v0 f2.v0;
     v1 = merge cs [r, r_err] (merge cs f1.v1 (List.map (fun (e, err) -> mk_neg e, err) f2.v1));
   }
@@ -384,11 +407,12 @@ let mul_form =
     let m2, m2_exp = sum2_high x1 y1 in
     let m2_err = mk_err_var (-1) m2_exp in
     {
+      bounds = f1.bounds *$ f2.bounds;
       v0 = mk_mul f1.v0 f2.v0;
       v1 = merge cs [mk_float_const m2, m2_err] (merge cs (mul1 f1.v0 f2.v1) (mul1 f2.v0 f1.v1));
     }
 
-let uop_form name f_high mk_v0 mk_v1 cs f =
+let uop_form name f_high mk_v0 mk_v1 mk_bounds cs f =
   Log.report `Debug name;
   let x0_int = estimate_expr cs f.v0 in
   let x1 = abs_eval_v1 cs f.v1 in
@@ -401,6 +425,7 @@ let uop_form name f_high mk_v0 mk_v1 cs f =
   let m3 = b_high *^ m2 in
   let m3_err = mk_err_var (-1) m2_exp in
   {
+    bounds = mk_bounds f.bounds;
     v0 = mk_v0 f.v0;
     v1 = merge cs [mk_float_const m3, m3_err] 
             (List.map (fun (e, err) -> mk_v1 f.v0 e, err) f.v1);
@@ -420,7 +445,7 @@ let inv_form =
     (abs_I (inv_I d)).high in
   let mk_v0 v0 = mk_div const_1 v0 in
   let mk_v1 v0 e = mk_neg (mk_div e (mk_mul v0 v0)) in
-  uop_form "inv_form" f_high mk_v0 mk_v1
+  uop_form "inv_form" f_high mk_v0 mk_v1 inv_I
 
 (* division *)
 let div_form cs f1 f2 =  
@@ -436,7 +461,7 @@ let sqrt_form =
     0.125 *^ (abs_I (inv_I d)).high in
   let mk_v0 v0 = mk_sqrt v0 in
   let mk_v1 v0 e = mk_div e (mk_mul const_2 (mk_sqrt v0)) in
-  uop_form "sqrt_form" f_high mk_v0 mk_v1
+  uop_form "sqrt_form" f_high mk_v0 mk_v1 sqrt_I
 
 (* sine *)
 let sin_form =
@@ -445,7 +470,7 @@ let sin_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_sin v0 in
   let mk_v1 v0 e = mk_mul (mk_cos v0) e in
-  uop_form "sin_form" f_high mk_v0 mk_v1
+  uop_form "sin_form" f_high mk_v0 mk_v1 sin_I
 
 (* cosine *)
 let cos_form =
@@ -454,7 +479,7 @@ let cos_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_cos v0 in
   let mk_v1 v0 e = mk_neg (mk_mul (mk_sin v0) e) in
-  uop_form "cos_form" f_high mk_v0 mk_v1
+  uop_form "cos_form" f_high mk_v0 mk_v1 cos_I
 
 (* tangent *)
 let tan_form =
@@ -464,7 +489,7 @@ let tan_form =
     (abs_I d).high in
   let mk_v0 v0 = mk_tan v0 in
   let mk_v1 v0 e = mk_div e (mk_mul (mk_cos v0) (mk_cos v0)) in
-  uop_form "tan_form" f_high mk_v0 mk_v1
+  uop_form "tan_form" f_high mk_v0 mk_v1 tan_I
 
 (* arcsine *)
 let asin_form =
@@ -477,7 +502,7 @@ let asin_form =
   let mk_v1 v0 e =
     let v1_0 = mk_sqrt (mk_sub const_1 (mk_mul v0 v0)) in
     mk_div e v1_0 in
-  uop_form "asin_form" f_high mk_v0 mk_v1
+  uop_form "asin_form" f_high mk_v0 mk_v1 asin_I
 
 (* arccosine *)
 let acos_form =
@@ -490,7 +515,7 @@ let acos_form =
   let mk_v1 v0 e =
     let v1_0 = mk_sqrt (mk_sub const_1 (mk_mul v0 v0)) in
     mk_neg (mk_div e v1_0) in
-  uop_form "acos_form" f_high mk_v0 mk_v1
+  uop_form "acos_form" f_high mk_v0 mk_v1 acos_I
 
 (* arctangent *)
 let atan_form =
@@ -503,7 +528,7 @@ let atan_form =
   let mk_v1 v0 e =
     let v1_0 = mk_add (mk_mul v0 v0) const_1 in
     mk_div e v1_0 in
-  uop_form "atan_form" f_high mk_v0 mk_v1
+  uop_form "atan_form" f_high mk_v0 mk_v1 atan_I
 
 (* exp *)
 let exp_form =
@@ -512,7 +537,7 @@ let exp_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_exp v0 in
   let mk_v1 v0 e = mk_mul (mk_exp v0) e in
-  uop_form "exp_form" f_high mk_v0 mk_v1
+  uop_form "exp_form" f_high mk_v0 mk_v1 exp_I
 
 (* log *)
 let log_form =
@@ -521,7 +546,7 @@ let log_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_log v0 in
   let mk_v1 v0 e = mk_div e v0 in
-  uop_form "log_form" f_high mk_v0 mk_v1
+  uop_form "log_form" f_high mk_v0 mk_v1 log_I
 
 (* sinh *)
 let sinh_form =
@@ -532,7 +557,7 @@ let sinh_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_sinh v0 in
   let mk_v1 v0 e = mk_mul (mk_cosh v0) e in
-  uop_form "sinh_form" f_high mk_v0 mk_v1
+  uop_form "sinh_form" f_high mk_v0 mk_v1 sinh_I
 
 (* cosh *)
 let cosh_form =
@@ -543,7 +568,7 @@ let cosh_form =
     0.5 *^ (abs_I d).high in
   let mk_v0 v0 = mk_cosh v0 in
   let mk_v1 v0 e = mk_mul (mk_sinh v0) e in
-  uop_form "cosh_form" f_high mk_v0 mk_v1
+  uop_form "cosh_form" f_high mk_v0 mk_v1 cosh_I
 
 (* tanh *)
 let tanh_form =
@@ -556,7 +581,7 @@ let tanh_form =
   let mk_v1 v0 e =
     let v1_0 = mk_mul (mk_cosh v0) (mk_cosh v0) in
     mk_div e v1_0 in
-  uop_form "tanh_form" f_high mk_v0 mk_v1
+  uop_form "tanh_form" f_high mk_v0 mk_v1 tanh_I
 
 (* arsinh *)
 let asinh_form =
@@ -569,7 +594,7 @@ let asinh_form =
   let mk_v1 v0 e =
     let v1_0 = mk_sqrt (mk_add const_1 (mk_mul v0 v0)) in
     mk_div e v1_0 in
-  uop_form "asinh_form" f_high mk_v0 mk_v1
+  uop_form "asinh_form" f_high mk_v0 mk_v1 Func.asinh_I
 
 (* arcosh *)
 let acosh_form =
@@ -582,7 +607,7 @@ let acosh_form =
   let mk_v1 v0 e =
     let v1_0 = mk_sqrt (mk_sub (mk_mul v0 v0) const_1) in
     mk_div e v1_0 in
-  uop_form "acosh_form" f_high mk_v0 mk_v1
+  uop_form "acosh_form" f_high mk_v0 mk_v1 Func.acosh_I
 
 (* artanh *)
 let atanh_form =
@@ -595,7 +620,7 @@ let atanh_form =
   let mk_v1 v0 e =
     let v1_0 = mk_sub const_1 (mk_mul v0 v0) in
     mk_div e v1_0 in
-  uop_form "atanh_form" f_high mk_v0 mk_v1
+  uop_form "atanh_form" f_high mk_v0 mk_v1 Func.atanh_I
 
 (* absolute value *)
 (* |x + e| = |x| + abs_err(t, x) * e where
@@ -626,6 +651,7 @@ let abs_form cs f =
     get_eps e *^ s in
   let abs_err = mk_abs_err (mk_sym_interval_const t) f.v0 in
   {
+    bounds = abs_I f.bounds;
     v0 = mk_abs f.v0;
     v1 = List.map (fun (e, err) -> mk_mul abs_err e, err) f.v1;
   }
@@ -657,6 +683,7 @@ let max_form cs f1 f2 =
   let err1 = mk_mul (mk_float_const 0.5) (mk_add const_1 (mk_abs_err t x_sub_y)) in
   let err2 = mk_mul (mk_float_const 0.5) (mk_sub const_1 (mk_abs_err t x_sub_y)) in
   {
+    bounds = max_I_I f1.bounds f2.bounds;
     v0 = mk_max f1.v0 f2.v0;
     v1 = merge cs (List.map (fun (e, err) -> mk_mul err1 e, err) f1.v1)
                   (List.map (fun (e, err) -> mk_mul err2 e, err) f2.v1);
@@ -683,6 +710,7 @@ let min_form cs f1 f2 =
   let err1 = mk_mul (mk_float_const 0.5) (mk_sub const_1 (mk_abs_err t x_sub_y)) in
   let err2 = mk_mul (mk_float_const 0.5) (mk_add const_1 (mk_abs_err t x_sub_y)) in
   {
+    bounds = min_I_I f1.bounds f2.bounds;
     v0 = mk_min f1.v0 f2.v0;
     v1 = merge cs (List.map (fun (e, err) -> mk_mul err1 e, err) f1.v1)
                   (List.map (fun (e, err) -> mk_mul err2 e, err) f2.v1);

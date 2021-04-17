@@ -19,6 +19,7 @@ type error_info = {
 }
 
 type taylor_form = {
+  bounds : Interval.interval;
   v0 : Expr.expr;
   v1 : (Expr.expr * error_info) list;
 }

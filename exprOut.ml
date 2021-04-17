@@ -107,6 +107,7 @@ module InfoPrinter : PrinterType = struct
         | Op_nat_pow -> fprintf fmt "(%a ^ %a)" print arg1 print arg2
         | Op_abs_err -> fprintf fmt "abs_err(%a, %a)" print arg1 print arg2
         | Op_sub2 -> fprintf fmt "sub2(%a, %a)" print arg1 print arg2
+        | Op_intersect -> fprintf fmt "intersect(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -173,6 +174,7 @@ module OCamlIntervalPrinter : PrinterType = struct
             | _ ->
                failwith "OCamlInterval: Op_nat_pow: non-integer exponent"
           end
+        | Op_intersect -> fprintf fmt "intersect_I (%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -299,6 +301,7 @@ module RacketIntervalPrinter : PrinterType = struct
         | Op_nat_pow -> fprintf fmt "@[<7>(iexpt %a@ %a)@]" print arg1 print arg2
         | Op_abs_err -> fprintf fmt "@[<10>(iabs-err %a@ %a)@]" print arg1 print arg2
         | Op_sub2 -> fprintf fmt "@[<7>(isub2 %a@ %a)@]" print arg1 print arg2
+        | Op_intersect -> fprintf fmt "@[<7>inter %a@ %a)@]" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -355,6 +358,7 @@ module CPrinter : PrinterType = struct
         | Op_nat_pow -> fprintf fmt "pow(%a, %a)" print arg1 print arg2
         | Op_abs_err -> fprintf fmt "abs_err(%a, %a)" print arg1 print arg2
         | Op_sub2 -> fprintf fmt "sub2(%a, %a)" print arg1 print arg2
+        | Op_intersect -> fprintf fmt "intersect(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -409,6 +413,7 @@ module OCamlFloatPrinter : PrinterType = struct
         | Op_nat_pow -> fprintf fmt "(%a ** %a)" print arg1 print arg2
         | Op_abs_err -> fprintf fmt "abs_err(%a, %a)" print arg1 print arg2
         | Op_sub2 -> fprintf fmt "sub2(%a, %a)" print arg1 print arg2
+        | Op_intersect -> fprintf fmt "intersect(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -520,6 +525,7 @@ module GelpiaPrinter : PrinterType = struct
             | _ ->
                failwith "Gelpia: Op_nat_pow: non-integer exponent"
           end
+        | Op_intersect -> fprintf fmt "intersect(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -579,6 +585,7 @@ module JavaScriptPrinter : PrinterType = struct
             | _ ->
                failwith "JavaScript: Op_nat_pow: non-integer exponent"
           end
+        | Op_intersect -> fprintf fmt "M.intersect(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with
@@ -643,6 +650,7 @@ module JavaScriptIntervalPrinter : PrinterType = struct
             | _ ->
                failwith "JavaScriptInterval: Op_nat_pow: non-integer exponent"
           end
+        | Op_intersect -> fprintf fmt "M.intersectI(%a, %a)" print arg1 print arg2
       end
     | Gen_op (op, args) -> begin
         match (op, args) with

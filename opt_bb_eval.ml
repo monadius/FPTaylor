@@ -78,6 +78,7 @@ let rec eval_expr' refs arr = function
     | Op_nat_pow -> x1 **$. x2.high
     | Op_sub2 -> Func.sub2_I (x1, x2)
     | Op_abs_err -> Func.abs_err_I (x1, x2)
+    | Op_intersect -> Func.intersect_I (x1, x2)
   end
 | Gen_op' (op, args) ->
   begin

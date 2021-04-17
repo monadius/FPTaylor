@@ -62,6 +62,7 @@ let eval_float_expr vars =
         | Op_nat_pow -> x1 ** x2
         | Op_sub2 -> Func.sub2 (x1, x2)
         | Op_abs_err -> Func.abs_err (x1, x2)
+        | Op_intersect -> failwith "eval_float_expr: Op_intersect"
       end
     | Gen_op (op, args) ->
       begin
@@ -188,6 +189,7 @@ let eval_interval_expr ?cache vars =
       | Op_nat_pow -> x1 **$. (eval_float_const_expr arg2)
       | Op_sub2 -> Func.sub2_I (x1, eval arg2)
       | Op_abs_err -> Func.abs_err_I (x1, eval arg2)
+      | Op_intersect -> Func.intersect_I (x1, eval arg2)
     end
   | Gen_op (op, args) ->
     begin
