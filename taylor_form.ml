@@ -319,10 +319,10 @@ let rounded_form cs original_expr rnd f =
       if Config.get_bool_option "fp-power2-model" then
         let e = mk_add f.v0 (mk_sym_interval_const s1) in
         let e =
-          if Config.get_bool_option "intersect" then
-            mk_intersect e (mk_interval_const f.bounds)
-          else
-            e in
+          match Config.get_int_option "intersection" with
+          | 0 -> e
+          | 1 -> mk_intersect e (mk_interval_const f.bounds)
+          | _ -> mk_intersect e f.v0 in
         mk_floor_power2 e,
         get_eps rnd.delta_exp /. get_eps rnd.eps_exp
       else

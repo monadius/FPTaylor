@@ -46,15 +46,16 @@ jobs:
     - name: Run basic tests
       run: |
         grep opt -C 3 default.cfg
-        make test
+        eval $(opam env) && make test
     - name: Run basic tests with gelpia
       if: startsWith(matrix.os, 'ubuntu')
       run: |
         sed -i "s|^opt = bb|opt = gelpia|g" default.cfg
-        make test
+        eval $(opam env) && make test
     - name: Regression tests
       run: |
         cd scripts
+        eval $(opam env)
         python run_tests.py ../tests/basic
         python run_tests.py ../tests/micro
         python run_tests.py ../tests/core
