@@ -1,0 +1,5 @@
+Variables
+  real t in [2^(-40), 1];
+
+Expressions
+  r rnd64= 1 / t;

@@ -1,0 +1,13 @@
+Variables
+  real r in [4.0, 4.0],
+  real K in [1.11, 1.11],
+  real x in [0.1, 0.3];
+
+Definitions
+  res rnd64= (r*x*x) / (1 + (x/K)*(x/K));
+
+Expressions
+  predatorPrey = res;
+
+
+

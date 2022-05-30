@@ -1,0 +1,13 @@
+Variables
+  real s1 in [-50, 50],
+  real s2 in [-10, 10],
+  real s3 in [-0.785, 0.785],
+  real s4 in [-0.785, 0.785];
+
+Definitions
+  r rnd64= 1.0000 * s1 + 1.6567 * s2 + (-18.6854) * s3 + (-3.4594) * s4
+;
+
+Expressions
+  invertedPendulum = r
+;

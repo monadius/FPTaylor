@@ -1,0 +1,17 @@
+Variables
+  real x1_0 in [-5, 5],
+  real x2_0 in [-5, 5];
+
+Definitions
+  x1 rnd64= x1_0,
+  x2 rnd32= x2_0,
+
+  t1 rnd64= x1*x1 + x2,
+  t2 = rnd32(rnd64(x1 + rnd32(x2*x2))),
+  r rnd64= (t1 - 11)*(t1 - 11) + rnd32(rnd32(t2 - 7)*rnd32(t2 - 7))
+;
+
+Expressions
+  himmilbeauLet = r
+;
+

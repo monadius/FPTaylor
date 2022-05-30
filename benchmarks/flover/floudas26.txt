@@ -1,0 +1,16 @@
+Variables
+  real x1 in [0, 1],
+  real x2 in [0, 1],
+  real x3 in [0, 1],
+  real x4 in [0, 1],
+  real x5 in [0, 1],
+  real x6 in [0, 1],
+  real x7 in [0, 1],
+  real x8 in [0, 1],
+  real x9 in [0, 1],
+  real x10 in [0, 1];
+
+
+Expressions
+  floudas26 rnd64= 48*x1 + 42*x2 + 48*x3 + 45*x4 + 44*x5 + 41*x6 + 47*x7 + 42*x8 + 45*x9 + 46*x10 -
+      50*(x1*x1 + x2*x2 + x3*x3 + x4*x4 + x5*x5 + x6*x6 + x7*x7 + x8*x8 + x9*x9 + x10*x10);

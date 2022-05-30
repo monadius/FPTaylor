@@ -1,0 +1,18 @@
+Variables
+  real u0 in [-100, 100],
+  real v0 in [20, 20000],
+  real T0 in [-30, 50];
+
+Definitions
+  u rnd64= u0,
+  v rnd32= v0,
+  T rnd64= T0,
+
+  t1 = rnd32(rnd64(rnd64(331.4) + rnd64(rnd64(0.6) * T))),
+  r rnd64= rnd32(rnd32(-t1) * v) / ((t1 + u) * (t1 + u))
+;
+
+
+Expressions
+  doppler1 = r
+;

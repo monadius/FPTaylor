@@ -1,0 +1,17 @@
+
+Variables
+  real r in [4.0, 4.0],
+  real K in [1.11, 1.11],
+  real x in [0.1, 0.3];
+  real k in [1.3806503e-23, 1.3806503e-23];
+  real T in [300.0, 300.0];
+  real a in [0.401, 0.401];
+  real b in [42.7e-6, 42.7e-6];
+  real N in [1000, 1000];
+  real p in [3.5e7, 3.5e7];
+  real V in [0.1, 0.5];
+
+Expressions
+  carbon_gas rnd64= (p + a * (N / V) * (N / V)) * (V - N * b) - k * N * T,
+  predatorPrec rnd64= (r*x*x) / (1 + (x/K)*(x/K)),
+  verhulst rnd64= (r*x) / (1 + (x/K));

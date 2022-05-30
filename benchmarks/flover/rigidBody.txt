@@ -1,0 +1,23 @@
+Variables
+  real x1_0 in [-15, 15],
+  real x2_0 in [-15, 15],
+  real x3_0 in [-15, 15];
+
+Definitions
+  x1 rnd64= x1_0,
+  x2 rnd32= x2_0,
+  x3 rnd64= x3_0,
+
+  r1 rnd64=  ((((-(x1) * x2) - (rnd32(2 * x2) * x3)) - x1) - x3),
+
+  tmp =rnd32(rnd64(rnd64(x1 * x2) * x3)),
+  r2 rnd64= ((((rnd32(2 * tmp) + ((3 * x3) * x3)) - rnd32(x2 * tmp)) + ((3 * x3) * x3)) - x2)
+;
+
+
+Expressions
+  rigidBody1 = r1,
+  rigidBody2 = r2
+;
+
+

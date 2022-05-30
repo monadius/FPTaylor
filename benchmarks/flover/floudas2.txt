@@ -1,0 +1,6 @@
+Variables
+  real x1 in [0, 3],
+  real x2 in [0, 4];
+
+Expressions
+  floudas2 rnd64= -x1 - x2;

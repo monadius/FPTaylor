@@ -1,0 +1,8 @@
+Constants
+    a = 1e14;
+
+Variables
+    float64 b in [0, 1e15];
+
+Expressions
+    sum rnd64= log(exp(a / 1e15) * exp(b / 1e15)) * 1e15;

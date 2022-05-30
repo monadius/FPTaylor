@@ -1,0 +1,36 @@
+Variables
+  real x1_0 in [4, 6.36],
+  real x2_0 in [4, 6.36],
+  real x3_0 in [4, 6.36],
+  real x4_0 in [4, 6.36],
+  real x5_0 in [4, 6.36],
+  real x6_0 in [4, 6.36];
+
+
+Definitions
+  x1 rnd32= x1_0,
+  x2 rnd32= x2_0,
+  x3 rnd64= x3_0,
+  x4 rnd64= x4_0,
+  x5 rnd64= x5_0,
+  x6 rnd64= x6_0,
+
+
+  t0 = rnd32(rnd64(rnd64(rnd64(rnd32(rnd32(-1 * x1) + x2) + x3) - x4) + x5) + x6),
+  r0 rnd64= (((((x2 * x5) + (x3 * x6)) - (x2 * x3)) - (x5 * x6)) + rnd32(x1 * t0)),
+
+  t1 = rnd32(rnd64(rnd32(rnd32(-1 * x1) + x2) + x3) - x4),
+  r1 rnd64= ((((((((x1 * x4) * t1) + (x2 * ((rnd32(x1 - x2) + x3) + x4))) + (x3 * ((rnd32(x1 + x2) - x3) + x4))) - ((x2 * x3) * x4)) - (x1 * x3)) - rnd32(x1 * x2)) - x4),
+
+  t2 = rnd32(rnd64(rnd64(rnd64(rnd32(rnd32(-1 * x1) + x2) + x3) - x4) + x5) + x6),
+  t3 = rnd32(rnd64(rnd64(rnd64(rnd32(x1 - x2) + x3) + x4) - x5) + x6),
+  r2 rnd64= ((((((((x1 * x4) * t2) + ((x2 * x5) * t3)) + ((x3 * x6) * ((((rnd32(x1 + x2) - x3) + x4) + x5) - x6))) - ((x2 * x3) * x4)) - ((x1 * x3) * x5)) - (rnd32(x1 * x2) * x6)) - ((x4 * x5) * x6))
+;
+
+Expressions
+  kepler0 = r0,
+  kepler1 = r1,
+  kepler2 = r2;
+
+
+

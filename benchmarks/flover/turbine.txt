@@ -1,0 +1,35 @@
+Variables
+  real v0 in [-4.5, -0.3],
+  real w0 in [0.4, 0.9],
+  real r0 in [3.8, 7.8];
+
+Definitions
+
+  v rnd64= v0,
+  w rnd32= w0,
+  r rnd64= r0,
+
+  t1 = rnd32(rnd64(rnd64(3-2*v)*rnd64(rnd64(rnd32(w*w)*r)*r))),
+
+  r1 rnd64= 3 + 2/(r*r) - rnd32(0.125*t1)/(1-v) - 4.5,
+
+  //t1 = rnd32(w*w*r*r),
+  //r1 rnd64= 6*v - 0.5 * v * t1 / (1-v) - 2.5,
+
+  t2 = rnd32(rnd64(rnd64(rnd32(w*w)*r)*r)),
+  r2 rnd64= 6*v - 0.5 * rnd32(v * t2) / (1-v) - 2.5,
+
+  //t3 = rnd32(rnd64(rnd64(rnd64(w*w)*r)*r)),
+  //r3 rnd64= 6*v - 0.5 * v * t3 / (1-v) - 2.5
+
+  t3 = rnd32(rnd64(rnd64(1+2*v) * rnd64(rnd64(rnd32(w*w)*r)*r))),
+  r3 rnd64= 3 - 2/(r*r) - rnd32(0.125 * t3) / (1-v) - 0.5
+;
+
+
+Expressions
+  turbine1 = r1,
+  turbine2 = r2,
+  turbine3 = r3
+;
+

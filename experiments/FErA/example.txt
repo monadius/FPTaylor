@@ -1,0 +1,8 @@
+Variables
+  float64 x in [7, 9];
+  float64 y in [3, 5];
+  float64 w in [2, 4];
+
+Expressions
+  z rnd64= (3 * x + y) / w;
+  z10 rnd64= z - 10;

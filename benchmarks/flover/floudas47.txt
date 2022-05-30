@@ -1,0 +1,7 @@
+Variables
+  real x1 in [0, 2],
+  real x2 in [0, 3];
+
+
+Expressions
+  floudas47 rnd64= -12 * x1 - 7 * x2 + x2 * x2;

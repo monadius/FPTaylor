@@ -1,0 +1,7 @@
+Expressions
+	e1 = sqrt(rnd64(0));
+	e2 = sqrt(0);
+	e3 = acos(rnd64(1));
+	e4 = acos(1);
+	e5 = acosh(rnd64(1));
+	e6 = acosh(1);

@@ -1,0 +1,17 @@
+Variables
+  real u in [0.0, 1.0];
+
+Definitions
+  r1 rnd64= (1 - u) * (1 - u) * (1 - u) / 6.0,
+  r2 rnd64= (3 * u*u*u - 6 * u*u + 4) / 6.0,
+  r3 rnd64= (-3 * u*u*u  + 3*u*u + 3*u + 1) / 6.0,
+  r4 rnd64= -u*u*u / 6.0
+;
+
+
+Expressions
+  bspline0 = r1,
+  bspline1 = r2,
+  bspline2 = r3,
+  bspline3 = r4
+;

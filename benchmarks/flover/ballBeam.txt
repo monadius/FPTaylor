@@ -1,0 +1,14 @@
+Variables
+  real s1 in [0.0, 1.0],
+  real s2 in [-0.5, 0.5],
+  real s3 in [0, 0.5],
+  real s4 in [0, 0.5];
+
+Definitions
+  r1 rnd64= (-1828.6) * s1 + (-1028.6) * s2 + (-2008.0) * s3 + (-104.0) * s4
+;
+
+
+Expressions
+  ballbeam = r1
+;

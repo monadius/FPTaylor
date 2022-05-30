@@ -1,0 +1,4 @@
+Variables
+  xdoty in [0.01,1e+12] +/- 222.045;
+Expressions
+  rsqrt rnd64= 1.0/sqrt(xdoty);
