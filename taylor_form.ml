@@ -403,7 +403,7 @@ let mul_form =
   fun cs f1 f2 -> 
     Log.report `Debug "mul_form";
     let x1 = abs_eval_v1 cs f1.v1 and
-      y1 = abs_eval_v1 cs f2.v1 in
+        y1 = abs_eval_v1 cs f2.v1 in
     let m2, m2_exp = sum2_high x1 y1 in
     let m2_err = mk_err_var (-1) m2_exp in
     {
@@ -416,10 +416,14 @@ let uop_form name f_high mk_v0 mk_v1 mk_bounds cs f =
   Log.report `Debug name;
   let x0_int = estimate_expr cs f.v0 in
   let x1 = abs_eval_v1 cs f.v1 in
-  let s1 = List.fold_left (fun s (x, x_exp) -> 
-      let eps = get_eps x_exp in
-      let xi = {low = -. eps; high = eps} in
-      (xi *$. x) +$ s) zero_I x1 in
+  let s1 = 
+    if Config.get_int_option "intersection" >= 1 then 
+      zero_I
+    else
+      List.fold_left (fun s (x, x_exp) -> 
+        let eps = get_eps x_exp in
+        let xi = {low = -. eps; high = eps} in
+        (xi *$. x) +$ s) zero_I x1 in
   let b_high = f_high x0_int s1 in
   let m2, m2_exp = sum2_high x1 x1 in
   let m3 = b_high *^ m2 in
@@ -455,9 +459,15 @@ let div_form cs f1 f2 =
 (* square root *)
 let sqrt_form =
   let f_high x0_int s1 =
-    let d =
-      let t = (x0_int +$ s1) in
-      sqrt_I t *$ t in
+    let t = x0_int +$ s1 in
+    if t.low < 0. then
+      let msg = "sqrt_form: sqrt of a negative number" in
+      if Config.fail_on_exception () then
+        failwith msg
+      else
+        Log.warning_str msg
+    else ();
+    let d = sqrt_I t *$ t in
     0.125 *^ (abs_I (inv_I d)).high in
   let mk_v0 v0 = mk_sqrt v0 in
   let mk_v1 v0 e = mk_div e (mk_mul const_2 (mk_sqrt v0)) in
