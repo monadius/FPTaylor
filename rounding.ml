@@ -26,6 +26,7 @@ type rnd_info = {
   fp_type : value_type;
   rnd_type : rnd_type;
   special_flag : bool;
+  lns_flag : bool;
 }
 
 let mk_value_type bits = { bits = bits }
@@ -102,6 +103,7 @@ let create_rounding bits rnd c =
     fp_type = fp_type;
     rnd_type = rnd_type;
     special_flag = false;
+    lns_flag = false;
   }
 
 let create_explicit_rounding bits rnd c eps delta = {
@@ -112,9 +114,16 @@ let create_explicit_rounding bits rnd c eps delta = {
   fp_type = { bits = bits };
   rnd_type = snd (string_to_rnd_type rnd);
   special_flag = false;
+  lns_flag = false;
 }
 
-let rounding_table = [
+let lns_rounding () =
+  let abs_err = Config.get_float_option "lns" in
+  let scale, exp = frexp abs_err in 
+  { (create_explicit_rounding 64 "ne" scale exp 0) with lns_flag = true }
+
+(* Lazy because Config is not initialized when this file is loaded *)
+let rounding_table = lazy [
   (* 16 bit rounding *)
   "rnd16", create_rounding 16 "ne" 1.0;
   "rnd16_up", create_rounding 16 "up" 1.0;
@@ -135,10 +144,11 @@ let rounding_table = [
   "rnd128_up", create_rounding 128 "up" 1.0;
   "rnd128_down", create_rounding 128 "down" 1.0;
   "rnd128_0", create_rounding 128 "zero" 1.0; 
+  "lns", lns_rounding ();
 ]
 
 let string_to_rounding name =
-  try List.assoc name rounding_table
+  try List.assoc name (Lazy.force rounding_table)
   with Not_found ->
     failwith ("Rounding mode " ^ name ^ " is not defined")
 
@@ -150,7 +160,7 @@ let rounding_type_to_string rnd_type =
     | Rnd_0 -> "zero"
 
 let rounding_to_string rnd =
-  try Lib.rev_assoc rnd rounding_table 
+  try Lib.rev_assoc rnd (Lazy.force rounding_table)
   with Not_found ->
     Printf.sprintf "rnd[%d,%s,%.2f,%d,%d]" 
       rnd.fp_type.bits (rounding_type_to_string rnd.rnd_type) 

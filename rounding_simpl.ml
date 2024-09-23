@@ -121,7 +121,8 @@ let simplify_rounding var_type =
           (* Multiplication *)
           | Bin_op (Op_mul, e1, e2) when 
               (is_power_of_2_or_0 e1 && is_subtype (get_type var_type e2) rnd.fp_type) 
-              || (is_power_of_2_or_0 e2 && is_subtype (get_type var_type e1) rnd.fp_type) ->
+              || (is_power_of_2_or_0 e2 && is_subtype (get_type var_type e1) rnd.fp_type)
+              || rnd.lns_flag ->
             arg
           | Bin_op (Op_mul, e1, e2) when 
               (is_neg_power_of_2 e1 && is_subtype (get_type var_type e2) rnd.fp_type) 
@@ -134,7 +135,8 @@ let simplify_rounding var_type =
             (* eps = 0 *)
             Rounding ({rnd with eps_exp = 0}, arg)
           | Bin_op (Op_div, e1, e2) when
-              is_neg_power_of_2 e2 && is_subtype (get_type var_type e1) rnd.fp_type ->
+              is_neg_power_of_2 e2 && is_subtype (get_type var_type e1) rnd.fp_type
+              || rnd.lns_flag ->
             arg
           (* Square root *)
           | U_op (Op_sqrt, e1) ->

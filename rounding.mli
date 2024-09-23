@@ -23,6 +23,7 @@ type rnd_info = {
   fp_type : value_type;
   rnd_type : rnd_type;
   special_flag : bool;
+  lns_flag : bool;
 }
 
 val mk_value_type : int -> value_type

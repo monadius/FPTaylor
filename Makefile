@@ -14,6 +14,8 @@ BASE_SRC = version.mli\
 	log.ml\
 	more_num.mli\
 	more_num.ml\
+	config.mli\
+	config.ml\
 	rounding.mli\
 	rounding.ml\
 	binary_float.ml\
@@ -27,8 +29,6 @@ BASE_SRC = version.mli\
 	eval.ml\
 	task.mli\
 	task.ml\
-	config.mli\
-	config.ml\
 	input_parser_env.mli\
 	input_parser_env.ml\
 	input_parser.mli\

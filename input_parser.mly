@@ -17,7 +17,7 @@
 %token INT REAL 
 %token <int> FLOAT
 %token <int * string> RND_PAR
-%token RND NO_RND
+%token RND RND_LNS NO_RND
 %token E_CONST
 
 %token ABS INV SQRT FMA
@@ -156,6 +156,7 @@ rnd:
   | RND LBRACKET NUMBER COMMA ID COMMA NUMBER COMMA pos_neg_number COMMA pos_neg_number RBRACKET
     { create_explicit_rounding (int_of_string $3) ($5) 
         (float_of_string $7) (int_of_string $9) (int_of_string $11) }
+  | RND_LNS { string_to_rounding "lns" }
   | NO_RND { create_rounding 0 "ne" 1.0 }
   | RND LBRACKET NUMBER COMMA ID COMMA NUMBER RBRACKET
     { create_rounding (int_of_string $3) ($5) (float_of_string $7) }
