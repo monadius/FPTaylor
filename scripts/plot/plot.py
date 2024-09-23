@@ -29,7 +29,7 @@ fptaylor = os.path.join(fptaylor_base, "fptaylor")
 fptaylor_export = os.path.join(fptaylor_base, "export")
 
 error_bounds_path = os.path.normpath(
-    os.path.join(base_path, "..", "..", "..", "..", "ErrorBounds"))
+    os.path.join(base_path, "..", "..", "..", "..", "my", "ErrorBounds"))
 racket_plot = os.path.join(error_bounds_path, "racket", "plot-data.rkt")
 
 fpbench_path = os.path.normpath(
@@ -188,7 +188,7 @@ def run_error_bounds(input_file):
     compile_cmd += src_files + [input_file]
     if args.mpfi:
         compile_cmd += ["-DUSE_MPFI", "-lmpfi"]
-    compile_cmd += ["-lmpfr", "-lgmp"]
+    compile_cmd += ["-lm", "-lmpfr", "-lgmp"]
 
     cmd_args = ["-n", str(args.segments),
                 "-s", str(args.err_samples)]

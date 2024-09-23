@@ -250,6 +250,9 @@ let sum_err_bounds bounds =
 
 (* Issue a warning if the second-order error term is too large *)
 let error2_warning ?(eps = 1e-2) err1 err2 =
+  if Config.get_bool_option "ignore-second-order-errors" then begin
+    Log.warning "Second-order errors are not computed (potentially unsound results)"
+  end;
   if abs_float err1 > 0. && abs_float err2 >= eps *. abs_float err1 then begin
     Log.warning "Large second-order error: %e (first-order = %e)" err2 err1;
     Log.warning "Try intermediate-opt = true or \
@@ -260,7 +263,11 @@ let absolute_errors task tf =
   Log.report `Important "\nComputing absolute errors";
   let cs = constraints_of_task task in
   let v1, v2 = split_error_terms tf.v1 in
-  let bounds2 = List.map (compute_bound cs) v2 in
+  let bounds2 = 
+    if Config.get_bool_option "ignore-second-order-errors" then
+        [zero_I, 0]
+    else
+      List.map (compute_bound cs) v2 in
   let total2_i = sum_err_bounds bounds2 in
   let err_approx =
     if not (Config.get_bool_option "opt-approx") then []

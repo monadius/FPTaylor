@@ -1,4 +1,4 @@
-ML = ocamlc
+ML = ocamlfind ocamlc -package num
 OPT_ML = ocamlopt
 JSML = js_of_ocaml --opt 3
 INTERVAL_DIR = INTERVAL
