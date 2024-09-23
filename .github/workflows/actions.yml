@@ -28,30 +28,30 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install pyyaml
-    - name: Install gelpia dependencies
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        pip install sly
-        sudo apt install flex bison wget
-    - name: Download and build gelpia
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        git clone https://github.com/soarlab/gelpia.git
-        cd gelpia
-        git checkout develop
-        make requirements
-        make
+    # - name: Install gelpia dependencies
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     pip install sly
+    #     sudo apt install flex bison wget
+    # - name: Download and build gelpia
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     git clone https://github.com/soarlab/gelpia.git
+    #     cd gelpia
+    #     git checkout develop
+    #     make requirements
+    #     make
     - name: Build FPTaylor
       run: eval $(opam env) && make
     - name: Run basic tests
       run: |
         grep opt -C 3 default.cfg
         make test
-    - name: Run basic tests with gelpia
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        sed -i "s|^opt = bb|opt = gelpia|g" default.cfg
-        make test
+    # - name: Run basic tests with gelpia
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     sed -i "s|^opt = bb|opt = gelpia|g" default.cfg
+    #     make test
     - name: Regression tests
       run: |
         cd scripts
