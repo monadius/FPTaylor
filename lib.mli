@@ -62,7 +62,7 @@ val explode : string -> string list
 
 val print_list : ('a -> unit) -> (unit -> 'b) -> 'a list -> unit
 
-val slice : string -> ?last:int -> first:int -> string
+val slice : first:int -> ?last:int -> string -> string
 
 val starts_with : string -> prefix:string -> bool
 

@@ -117,7 +117,7 @@ let starts_with str ~prefix =
   else
     String.sub str 0 n = prefix
 
-let slice str ?last ~first =
+let slice ~first ?last str =
   let n = String.length str in
   let last = match last with None -> n | Some v -> v in
   if last <= first || first < 0 || first >= n then ""
