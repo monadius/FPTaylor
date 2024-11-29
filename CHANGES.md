@@ -1,3 +1,8 @@
+FPTaylor 0.9.5
+--------------
+
+- [FEATURE] --ignore-second-order-errors: ignore second order errors when computing Taylor forms.
+
 FPTaylor 0.9.4
 --------------
 
