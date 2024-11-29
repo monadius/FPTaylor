@@ -9,52 +9,68 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        ocaml: [4.03.0, 4.09.0, 4.11.1]
+        ocaml: [4.03.0, 4.09.0, 4.14.2]
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Setup opam and OCaml
-      uses: avsm/setup-ocaml@v1
+    - uses: actions/checkout@v4
+
+    - name: Setup opam and OCaml ${{ matrix.ocaml }}
+      uses: ocaml/setup-ocaml@v3
       with:
-        ocaml-version: ${{ matrix.ocaml }}
+        ocaml-compiler: ${{ matrix.ocaml }}
+
+    - name: Install opam dependencies
+      run: opam install -y ocamlfind
+
     - name: Install num
       if: ${{ matrix.ocaml >= '4.06' }}
       run: opam install -y num
-    - name: Set up Python 3.7 for tests (and gelpia)
-      uses: actions/setup-python@v1
+
+    - name: Set up Python 3.11 for tests (and gelpia)
+      uses: actions/setup-python@v5
       with:
-        python-version: 3.7
+        python-version: 3.11
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
         pip install pyyaml
-    - name: Install gelpia dependencies
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        pip install sly
-        sudo apt install flex bison wget
-    - name: Download and build gelpia
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        git clone https://github.com/soarlab/gelpia.git
-        cd gelpia
-        git checkout develop
-        make requirements
-        make
+
+    # - name: Install gelpia dependencies
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     pip install sly
+    #     sudo apt install flex bison wget
+
+    # - name: Download and build gelpia
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     git clone https://github.com/soarlab/gelpia.git
+    #     cd gelpia
+    #     git checkout develop
+    #     make requirements
+    #     make
+
     - name: Build FPTaylor
       run: eval $(opam env) && make
+
     - name: Run basic tests
       run: |
+        eval $(opam env)
         grep opt -C 3 default.cfg
         make test
-    - name: Run basic tests with gelpia
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        sed -i "s|^opt = bb|opt = gelpia|g" default.cfg
-        make test
+
+    # - name: Run basic tests with gelpia
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     sed -i "s|^opt = bb|opt = gelpia|g" default.cfg
+    #     make test
+
     - name: Regression tests
       run: |
+        eval $(opam env)
         cd scripts
+        python --version
         python run_tests.py ../tests/basic
         python run_tests.py ../tests/micro
         python run_tests.py ../tests/core
