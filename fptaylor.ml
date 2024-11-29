@@ -632,7 +632,7 @@ let process_input fname =
       else
         tmp_base_dir in
     Lib.set_tmp_dir tmp_dir in
-  Config.print_options `Debug;
+  Config.print_options ~level:`Debug;
   let tasks = Parser.parse_file fname in
   Log.report `Debug "|tasks| = %d" (List.length tasks);
   let results = List.map process_task tasks in

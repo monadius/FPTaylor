@@ -18,13 +18,12 @@ Publications
 Requirements
 -------------
 
-- [OCaml](http://ocaml.org/) version 4.03.0 or higher with a native compiler (do
+- [OCaml](http://ocaml.org/) version 4.07.0 or higher with a native compiler (do
   not forget `make opt` if you are building from source code). 
   A recommended way to install OCaml is with [OPAM](https://opam.ocaml.org/doc/Install.html)
 
-- (Required for OCaml >= 4.06) [OCaml Num library](https://github.com/ocaml/num).
-  This library is included in OCaml < 4.05. For other OCaml versions it can be installed
-  with `opam install num`.
+- The following FPTaylor dependencies should be installed:
+  `opam install ocamlfind num`.
 
 - (Included) Interval computation library for OCaml. It is distributed with
   FPTaylor (see [INTERVAL](INTERVAL)). There is also an alternative

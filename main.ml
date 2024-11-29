@@ -24,6 +24,6 @@ let main () =
     exit 1
   end;
   Fptaylor.validate_options ();
-  Fptaylor.fptaylor input_files |> ignore
+  Fptaylor.fptaylor ~input_files |> ignore
 
 let () = main ()

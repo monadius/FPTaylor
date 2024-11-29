@@ -1,6 +1,8 @@
 FPTaylor 0.9.5
 --------------
 
+- OCaml 4.07.0 is now required to build FPTaylor.
+
 - [FEATURE] --ignore-second-order-errors: ignore second order errors when computing Taylor forms.
 
 FPTaylor 0.9.4
