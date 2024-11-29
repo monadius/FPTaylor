@@ -221,6 +221,30 @@ let add2_symbolic (e1, exp1) (e2, exp2) =
    80 seconds with fold_right and 96 seconds with fold_left for poly50 *)
 let sum_symbolic s = List.fold_right add2_symbolic s (const_0, 0)
 
+(** Computes the expression for the maximum sum of the given expressions taking into
+    account the rounding direction of corresponding error variables *)
+let total_max_sum (exprs : (expr * error_info) list) =
+  let enabled = Config.debug () in
+  let dir_up, other = List.partition (fun (_, { rnd_type }) -> rnd_type = Rounding.Rnd_up && enabled) exprs in
+  let dir_down, other = List.partition (fun (_, { rnd_type }) -> rnd_type = Rounding.Rnd_down && enabled) other in
+  let dir_down = List.map (fun (e, err) -> mk_neg e, err) dir_down in
+  let dir = dir_up @ dir_down in
+  let sum_other, exp1 = List.map (fun (e, { exp }) -> mk_abs e, exp) other |> sum_symbolic in
+  if dir = [] then
+    sum_other, exp1
+  else begin
+    Log.report `Info "Directed rounding optimization expressions: %d" (List.length dir);
+    let sum_pos, exp_pos = List.map (fun (e, { exp }) -> mk_max e const_0, exp) dir |> sum_symbolic in
+    let sum_neg, exp_neg = List.map (fun (e, { exp }) -> mk_min e const_0, exp) dir |> sum_symbolic in
+    let exp = min exp_pos exp_neg in
+    let mk_expr expr e = if e = exp then expr else mk_mul (mk_float_const(Rounding.get_eps (e - exp))) expr in
+    let dir_expr = mk_max (mk_expr sum_pos exp_pos) (mk_neg (mk_expr sum_neg exp_neg)) in
+    if other = [] then
+      dir_expr, exp
+    else
+      add2_symbolic (sum_other, exp1) (dir_expr, exp)
+  end
+
 let compute_bound cs (expr, err) =
   let r = Opt.find_max_abs (Opt_common.default_opt_pars ()) cs expr in
   let bound = {low = r.Opt_common.lower_bound; high = r.Opt_common.result} in
@@ -290,9 +314,8 @@ let absolute_errors task tf =
     if not (Config.get_bool_option "opt-exact") then []
     else begin
       Log.report `Important "\nSolving the exact optimization problem";
-      let abs_exprs = List.map (fun (e, err) -> mk_abs e, err.exp) v1 in
-      let full_expr, exp =
-        let full_expr', exp = sum_symbolic abs_exprs in
+      let full_expr, exp = 
+        let full_expr', exp = total_max_sum v1 in
         (* FIXME: Incorrect simplification results for horner50.txt if the following lines are uncommented *)
         (* if Config.get_bool_option "maxima-simplification" then
           Maxima.simplify task full_expr', exp
@@ -370,8 +393,7 @@ let relative_errors task tf (f_min, f_max) =
       else begin
         Log.report `Important "\nSolving the exact optimization problem";
         let full_expr, exp =
-          let abs_exprs = List.map (fun (e, err) -> mk_abs e, err.exp) v1 in
-          let sum_expr, exp = sum_symbolic abs_exprs in
+          let sum_expr, exp = total_max_sum v1 in
           let full_expr' = mk_div sum_expr (mk_abs tf.v0) in
           if Config.get_bool_option "maxima-simplification" then
             Maxima.simplify task full_expr', exp
@@ -449,8 +471,7 @@ let ulp_errors task tf (f_min, f_max) =
       else begin
         Log.report `Important "\nSolving the exact optimization problem";
         let full_expr, exp =
-          let abs_exprs = List.map (fun (e, err) -> mk_abs e, err.exp) v1 in
-          let sum_expr, exp = sum_symbolic abs_exprs in
+          let sum_expr, exp = total_max_sum v1 in
           let full_expr' = mk_div sum_expr (mk_abs (mk_ulp (prec, min_exp) tf.v0)) in
           full_expr', exp in
         let bound =

@@ -489,7 +489,7 @@ class PlotTask:
         if args.width:
             cmd += ["--width", str(args.width)]
         if args.height:
-            cmd += ["--height", str(arg.height)]
+            cmd += ["--height", str(args.height)]
         if not args.show_extra_errors:
             cmd += ["--single-data"]
         for (error_file, style) in self.error_files:
