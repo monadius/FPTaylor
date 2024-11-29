@@ -16,6 +16,8 @@ type error_info = {
   index : int;
   (* The upper bound of the error is 2^exp *)
   exp : int;
+  (* Rounding type for this error variable *)
+  rnd_type : Rounding.rnd_type;
 }
 
 type taylor_form = {

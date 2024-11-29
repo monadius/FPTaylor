@@ -22,6 +22,8 @@ type error_info = {
   index : int;
   (* The upper bound of the error is 2^exp *)
   exp : int;
+  (* Rounding type for this error variable *)
+  rnd_type : Rounding.rnd_type;
 }
 
 type taylor_form = {
@@ -34,9 +36,10 @@ let dummy_tform = {
   v1 = [];
 }
 
-let mk_err_var index exp = {
+let mk_err_var (index : int) (exp : int) (rnd_type : Rounding.rnd_type) : error_info = {
   index = index;
   exp = exp;
+  rnd_type = rnd_type;
 }
 
 let mk_sym_interval_const f =
@@ -115,7 +118,8 @@ let rec merge cs v1 v2 =
     let f1 = abs_eval cs ex1 in
     let f2 = abs_eval cs ex2 in
     let f, exp = add2 (f1, exp1) (f2, exp2) in
-    let err = mk_err_var (-1) exp in
+    (* rnd_type is ignored for second-order errors; use Rnd_ne for second-order errors*)
+    let err = mk_err_var (-1) exp Rounding.Rnd_ne in
     (mk_float_const f, err) :: merge cs v1s v2s
   | ((ex1, err1) as h1) :: v1s, ((ex2, err2) as h2) :: v2s ->
     if err1.index = err2.index then begin
@@ -207,7 +211,7 @@ let precise_const_rnd_form rnd e =
       (*	let err = mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp in *)
       (* Exact errors for constants can cancel each other: 
          use the same artificial constant (const_0) for indices *)
-      let err = mk_err_var (find_index (mk_rounding rnd const_0)) rnd.eps_exp in
+      let err = mk_err_var (find_index (mk_rounding rnd const_0)) rnd.eps_exp rnd.rnd_type in
       Log.report `Debug "Inexact constant: %s; err = %s"
         (ExprOut.Info.print_str e)
         (ExprOut.Info.print_str err_expr);
@@ -234,7 +238,7 @@ let const_rnd_form rnd e =
         let p2 = Func.floor_power2 bound in
         let m2 = rnd.coefficient *^ p2 in
         let err_expr = mk_float_const m2 in
-        let err = mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp in
+        let err = mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp rnd.rnd_type in
         Log.report `Debug "Inexact constant: %s; err = %s" 
           (ExprOut.Info.print_str e) 
           (ExprOut.Info.print_str err_expr);
@@ -248,7 +252,8 @@ let get_var_uncertainty cs eps_exp var_name =
   let v = cs.var_uncertainty var_name in
   let u = (Const.to_num v) // More_num.num_of_float (get_eps eps_exp) in
   if not (u =/ Int 0) then
-    [mk_num_const u, mk_err_var (find_index (mk_var (var_name ^ "$uncertainty"))) eps_exp]
+    (* Use Rnd_ne for uncertainty errors (we have +/- uncertainties only) *)
+    [mk_num_const u, mk_err_var (find_index (mk_var (var_name ^ "$uncertainty"))) eps_exp Rounding.Rnd_ne]
   else 
     []
 
@@ -286,7 +291,7 @@ let var_rnd_form cs rnd e =
           else 
             err_expr0 in
         (* TODO: subnormal values of variables *)
-        [err_expr, mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp] in
+        [err_expr, mk_err_var (find_index (mk_rounding rnd e)) rnd.eps_exp rnd.rnd_type] in
       {
         v0 = e;
         v1 = merge cs v1_uncertainty v1_rnd;
@@ -298,7 +303,7 @@ let rounded_form cs original_expr rnd f =
   Log.report `Debug "rounded_form";
   if rnd.eps_exp = 0 then {
     v0 = f.v0;
-    v1 = merge cs [mk_float_const rnd.coefficient, mk_err_var (-1) rnd.delta_exp] f.v1;
+    v1 = merge cs [mk_float_const rnd.coefficient, mk_err_var (-1) rnd.delta_exp rnd.rnd_type] f.v1;
   }
   else
     let i = find_index original_expr in
@@ -316,8 +321,8 @@ let rounded_form cs original_expr rnd f =
         r', m2'
       else
         mk_mul (mk_float_const rnd.coefficient) r', rnd.coefficient *^ m2' in
-    let r_err = mk_err_var i rnd.eps_exp and
-        m2_err = mk_err_var (-1) rnd.eps_exp in
+    let r_err = mk_err_var i rnd.eps_exp rnd.rnd_type and
+        m2_err = mk_err_var (-1) rnd.eps_exp rnd.rnd_type in
     {
       v0 = f.v0;
       v1 = merge cs [mk_float_const m2, m2_err; r, r_err] f.v1
@@ -362,7 +367,7 @@ let rounded_sub_form cs original_expr rnd f1 f2 =
       r'
     else
       mk_mul (mk_float_const rnd.coefficient) r' in
-  let r_err = mk_err_var i rnd.eps_exp in
+  let r_err = mk_err_var i rnd.eps_exp rnd.rnd_type in
   {
     v0 = mk_sub f1.v0 f2.v0;
     v1 = merge cs [r, r_err] (merge cs f1.v1 (List.map (fun (e, err) -> mk_neg e, err) f2.v1));
@@ -382,7 +387,7 @@ let mul_form =
     let x1 = abs_eval_v1 cs f1.v1 and
       y1 = abs_eval_v1 cs f2.v1 in
     let m2, m2_exp = sum2_high x1 y1 in
-    let m2_err = mk_err_var (-1) m2_exp in
+    let m2_err = mk_err_var (-1) m2_exp Rounding.Rnd_ne in
     {
       v0 = mk_mul f1.v0 f2.v0;
       v1 = merge cs [mk_float_const m2, m2_err] (merge cs (mul1 f1.v0 f2.v1) (mul1 f2.v0 f1.v1));
@@ -399,7 +404,7 @@ let uop_form name f_high mk_v0 mk_v1 cs f =
   let b_high = f_high x0_int s1 in
   let m2, m2_exp = sum2_high x1 x1 in
   let m3 = b_high *^ m2 in
-  let m3_err = mk_err_var (-1) m2_exp in
+  let m3_err = mk_err_var (-1) m2_exp Rounding.Rnd_ne in
   {
     v0 = mk_v0 f.v0;
     v1 = merge cs [mk_float_const m3, m3_err] 
