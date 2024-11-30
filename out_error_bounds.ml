@@ -24,6 +24,7 @@ type env = {
   mutable tmp_index : int;
   mutable tmp_max_index : int;
   mutable subexprs : (expr * string) list;
+  (* A list of known names for subexpressions (e.g., for the return value)*)
   mutable subexprs_names : (expr * string) list;
 }
 
@@ -69,45 +70,67 @@ let get_expr_name env ?(suffix = "") expr =
     name, flag
 
 let translate_mpfr env =
+  let mpfr_rnd_of_rnd_type = function
+    | Some { Rounding.rnd_type = Rounding.Rnd_ne } -> "MPFR_RNDN"
+    | Some { Rounding.rnd_type = Rounding.Rnd_up } -> "MPFR_RNDU"
+    | Some { Rounding.rnd_type = Rounding.Rnd_down } -> "MPFR_RNDD"
+    | Some { Rounding.rnd_type = Rounding.Rnd_0 } -> "MPFR_RNDZ"
+    | None -> "MPFR_RNDN"
+  in
   let rec translate fmt expr =
     let name, found_flag = get_expr_name env expr ~suffix:"" in
     if found_flag then name
     else
       let () =
         match expr with
-        | U_op (op, arg) -> begin
-            let arg_name = translate fmt arg in
-            match op with
-            | Op_neg -> fprintf fmt "  mpfr_neg(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_abs -> fprintf fmt "  mpfr_abs(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_inv -> fprintf fmt "  mpfr_d_div(%s, 1.0, %s, MPFR_RNDN);@." name arg_name
-            | Op_sqrt -> fprintf fmt "  mpfr_sqrt(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_exp -> fprintf fmt "  mpfr_exp(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_log -> fprintf fmt "  mpfr_log(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_sin -> fprintf fmt "  mpfr_sin(%s, %s, MPFR_RNDN);@." name arg_name
-            | Op_cos -> fprintf fmt "  mpfr_cos(%s, %s, MPFR_RNDN);@." name arg_name
-            | _ -> failwith ("translate_mpfr: unsupported unary operation: " ^ u_op_name op)
-          end
-        | Bin_op (op, arg1, arg2) -> begin
-            let a1 = translate fmt arg1 in
-            let a2 = translate fmt arg2 in
-            match op with
-            | Op_min -> fprintf fmt "  mpfr_min(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_max -> fprintf fmt "  mpfr_max(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_add -> fprintf fmt "  mpfr_add(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_sub -> fprintf fmt "  mpfr_sub(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_mul -> fprintf fmt "  mpfr_mul(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_div -> fprintf fmt "  mpfr_div(%s, %s, %s, MPFR_RNDN);@." name a1 a2
-            | Op_nat_pow -> begin
-                match arg2 with
-                | Const (Const.Rat n) when Num.is_integer_num n ->
-                  fprintf fmt "mpfr_pow_ui(%s, %s, %s, MPFR_RNDN);@." name a1 (Num.string_of_num n)
-                | _ -> failwith "translate_mpfr: Op_nat_pow: non-integer exponent"
-              end
-            | _ -> failwith ("translate_mpfr: unsupported binary operation: " ^ bin_op_name op)
-          end
+        | Rounding (rnd, U_op (op, arg)) -> translate_unary_op fmt op ~rnd name arg
+        | Rounding (rnd, Bin_op (op, arg1, arg2)) -> translate_bin_op fmt op ~rnd name arg1 arg2
+        | Rounding (rnd, Gen_op (op, args)) -> translate_gen_op fmt op ~rnd name args
+        | Rounding (rnd, arg) ->
+          let arg_name = translate fmt arg in
+          fprintf fmt "  mpfr_set(%s, %s, %s);@." name arg_name (mpfr_rnd_of_rnd_type (Some rnd))
+        | U_op (op, arg) -> translate_unary_op fmt op name arg
+        | Bin_op (op, arg1, arg2) -> translate_bin_op fmt op name arg1 arg2
+        | Gen_op (op, args) -> translate_gen_op fmt op name args
         | _ -> failwith ("translate_mpfr: unsupported operation") in
       name 
+  and translate_unary_op fmt op ?(rnd : Rounding.rnd_info option) res_name arg =
+    let rnd = mpfr_rnd_of_rnd_type rnd in
+    let arg_name = translate fmt arg in
+    match op with
+    | Op_neg -> fprintf fmt "  mpfr_neg(%s, %s, %s);@." res_name arg_name rnd
+    | Op_abs -> fprintf fmt "  mpfr_abs(%s, %s, %s);@." res_name arg_name rnd
+    | Op_inv -> fprintf fmt "  mpfr_d_div(%s, 1.0, %s, %s);@." res_name arg_name rnd
+    | Op_sqrt -> fprintf fmt "  mpfr_sqrt(%s, %s, %s);@." res_name arg_name rnd
+    | Op_exp -> fprintf fmt "  mpfr_exp(%s, %s, %s);@." res_name arg_name rnd
+    | Op_log -> fprintf fmt "  mpfr_log(%s, %s, %s);@." res_name arg_name rnd
+    | Op_sin -> fprintf fmt "  mpfr_sin(%s, %s, %s);@." res_name arg_name rnd
+    | Op_cos -> fprintf fmt "  mpfr_cos(%s, %s, %s);@." res_name arg_name rnd
+    | _ -> failwith ("translate_mpfr: unsupported unary operation: " ^ u_op_name op)
+  and translate_bin_op fmt op ?(rnd : Rounding.rnd_info option) res_name arg1 arg2 =
+    let rnd = mpfr_rnd_of_rnd_type rnd in
+    let a1 = translate fmt arg1 in
+    let a2 = translate fmt arg2 in
+    match op with
+    | Op_min -> fprintf fmt "  mpfr_min(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_max -> fprintf fmt "  mpfr_max(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_add -> fprintf fmt "  mpfr_add(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_sub -> fprintf fmt "  mpfr_sub(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_mul -> fprintf fmt "  mpfr_mul(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_div -> fprintf fmt "  mpfr_div(%s, %s, %s, %s);@." res_name a1 a2 rnd
+    | Op_nat_pow -> begin
+        match arg2 with
+        | Const (Const.Rat n) when Num.is_integer_num n ->
+          fprintf fmt "mpfr_pow_ui(%s, %s, %s, %s);@." res_name a1 (Num.string_of_num n) rnd
+        | _ -> failwith "translate_mpfr: Op_nat_pow: non-integer exponent"
+      end
+    | _ -> failwith ("translate_mpfr: unsupported binary operation: " ^ bin_op_name op)
+  and translate_gen_op fmt op ?(rnd : Rounding.rnd_info option) res_name args =
+    let rnd = mpfr_rnd_of_rnd_type rnd in
+    let arg_names = List.map (translate fmt) args in
+    match op, arg_names with
+    | Op_fma, [a1; a2; a3] -> fprintf fmt "  mpfr_fma(%s, %s, %s, %s, %s);@." res_name a1 a2 a3 rnd
+    | _ -> failwith ("translate_mpfr: unsupported generic operation: " ^ gen_op_name op)
   in
   translate
 
