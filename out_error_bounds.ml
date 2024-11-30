@@ -140,6 +140,8 @@ let translate_mpfi env =
             let a1 = translate fmt arg1 in
             let a2 = translate fmt arg2 in
             match op with
+            | Op_min -> fprintf fmt "  mpfi_min(%s, %s, %s);@." name a1 a2
+            | Op_max -> fprintf fmt "  mpfi_max(%s, %s, %s);@." name a1 a2
             | Op_add -> fprintf fmt "  mpfi_add(%s, %s, %s);@." name a1 a2
             | Op_sub -> fprintf fmt "  mpfi_sub(%s, %s, %s);@." name a1 a2
             | Op_mul -> fprintf fmt "  mpfi_mul(%s, %s, %s);@." name a1 a2

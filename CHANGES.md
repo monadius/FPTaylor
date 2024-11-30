@@ -3,6 +3,8 @@ FPTaylor 0.9.5
 
 - OCaml 4.07.0 is now required to build FPTaylor.
 
+- Improved error bounds for expressions with directed rounding.
+
 - [FEATURE] --ignore-second-order-errors: ignore second order errors when computing Taylor forms.
 
 FPTaylor 0.9.4
