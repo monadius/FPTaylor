@@ -17,57 +17,86 @@ open Format
 let print_list sep fmt =
   Lib.print_list (pp_print_string fmt) (fun () -> pp_print_string fmt sep)
 
+type var_info = {
+  var_name : string;
+  (* If prec < 0 then infinite precision is assumed *)
+  (* The precision may be modified when rounding expressions are translated to MPFR *)
+  mutable var_prec : int;
+}
+
+type global_env = {
+  mutable constants : (Num.num * var_info) list;
+  mutable global_vars : var_info list;
+  parameters : (string * var_info) list;
+}
+
 type env = {
-  vars : (string * string) list;
-  mutable const_index : int;
-  mutable constants : (Num.num * int) list;
-  mutable tmp_index : int;
-  mutable tmp_max_index : int;
-  mutable subexprs : (expr * string) list;
-  (* A list of known names for subexpressions (e.g., for the return value)*)
-  mutable subexprs_names : (expr * string) list;
+  global_env : global_env;
+  (* Index for temporary local variables *)
+  mutable local_index : int;
+  (* A list of all local subexpressions and corresponding variables (including constants) *)
+  mutable subexprs : (expr * var_info) list;
+  (* A list of known variables for subexpressions (e.g., for the return value)*)
+  subexprs_names : (expr * var_info) list;
 }
 
-let mk_env vars = {
-  vars = vars;
-  const_index = 0;
+let mk_var_info ?(prec = -1) name = { 
+  var_name = name; 
+  var_prec = prec
+}
+
+let mk_global_env parameters = {
+  parameters = parameters;
   constants = [];
-  tmp_index = 0;
-  tmp_max_index = 0;
-  subexprs = [];
-  subexprs_names = [];
+  global_vars = [];
 }
 
-let clear_exprs env =
-  env.tmp_index <- 0;
-  env.subexprs <- [];
-  env.subexprs_names <- []
+let mk_local_env global_env subexprs_names = {
+  global_env = global_env;
+  local_index = 0;
+  subexprs = [];
+  subexprs_names = subexprs_names;
+}
 
-let get_expr_name env ?(suffix = "") expr =
+let get_expr_name env ~local expr =
   try Lib.assoc_eq eq_expr expr env.subexprs, true
   with Not_found ->
-    let name, flag =
+    let var_info, flag =
       match expr with
-      | Const c when Const.is_rat c ->
-        let index =
+      | Const c when Const.is_rat c -> begin
           let n = Const.to_num c in
-          try Lib.assoc_eq Num.eq_num n env.constants
+          try Lib.assoc_eq Num.eq_num n env.global_env.constants, true
           with Not_found ->
-            env.const_index <- env.const_index + 1;
-            env.constants <- (n, env.const_index) :: env.constants;
-            env.const_index in
-        sprintf "c_%d%s" index suffix, true
-      | Var v -> List.assoc v env.vars, true
+            (* Rational constants are always global *)
+            let index = List.length env.global_env.constants in
+            let name = sprintf "c_%d" index in
+            let var = mk_var_info name in
+            env.global_env.constants <- (n, var) :: env.global_env.constants;
+            var, true
+        end
+      | Var v -> List.assoc v env.global_env.parameters, true
       | _ -> begin
           try Lib.assoc_eq eq_expr expr env.subexprs_names, false
           with Not_found ->
-            env.tmp_index <- env.tmp_index + 1;
-            env.tmp_max_index <- max env.tmp_max_index env.tmp_index;
-            let tmp_name = sprintf "t_%d%s" env.tmp_index suffix in
-            tmp_name, false 
-        end in
-    env.subexprs <- (expr, name) :: env.subexprs;
-    name, flag
+            let var = 
+              if local then begin
+                env.local_index <- env.local_index + 1;
+                let index = env.local_index in
+                let name = sprintf "loc_%d" index in
+                mk_var_info name
+              end else begin
+                let index = List.length env.global_env.global_vars in
+                let name = sprintf "t_%d" index in
+                let var = mk_var_info name in
+                env.global_env.global_vars <- var :: env.global_env.global_vars;
+                var
+              end in
+            env.subexprs <- (expr, var) :: env.subexprs;
+            var, false 
+        end
+    in
+    env.subexprs <- (expr, var_info) :: env.subexprs;
+    var_info, flag
 
 let translate_mpfr env =
   let mpfr_rnd_of_rnd_type = function
@@ -78,22 +107,28 @@ let translate_mpfr env =
     | None -> "MPFR_RNDN"
   in
   let rec translate fmt expr =
-    let name, found_flag = get_expr_name env expr ~suffix:"" in
+    let var_info, found_flag = get_expr_name env ~local:false expr in
+    let name = var_info.var_name in
     if found_flag then name
     else
       let () =
         match expr with
-        | Rounding (rnd, U_op (op, arg)) -> translate_unary_op fmt op ~rnd name arg
-        | Rounding (rnd, Bin_op (op, arg1, arg2)) -> translate_bin_op fmt op ~rnd name arg1 arg2
-        | Rounding (rnd, Gen_op (op, args)) -> translate_gen_op fmt op ~rnd name args
         | Rounding (rnd, arg) ->
-          let arg_name = translate fmt arg in
-          fprintf fmt "  mpfr_set(%s, %s, %s);@." name arg_name (mpfr_rnd_of_rnd_type (Some rnd))
+          let () = match arg with
+            | U_op (op, arg) -> translate_unary_op fmt op ~rnd name arg
+            | Bin_op (op, arg1, arg2) -> translate_bin_op fmt op ~rnd name arg1 arg2
+            | Gen_op (op, args) -> translate_gen_op fmt op ~rnd name args
+            | _ ->
+              let arg_name = translate fmt arg in
+              fprintf fmt "  mpfr_set(%s, %s, %s);@." name arg_name (mpfr_rnd_of_rnd_type (Some rnd))
+          in
+          (* Modify the precision of the variable which holds the result *)
+          var_info.var_prec <- Rounding.type_precision rnd.fp_type
         | U_op (op, arg) -> translate_unary_op fmt op name arg
         | Bin_op (op, arg1, arg2) -> translate_bin_op fmt op name arg1 arg2
         | Gen_op (op, args) -> translate_gen_op fmt op name args
         | _ -> failwith ("translate_mpfr: unsupported operation") in
-      name 
+      name
   and translate_unary_op fmt op ?(rnd : Rounding.rnd_info option) res_name arg =
     let rnd = mpfr_rnd_of_rnd_type rnd in
     let arg_name = translate fmt arg in
@@ -136,7 +171,7 @@ let translate_mpfr env =
 
 let translate_mpfi env =
   let rec translate fmt expr =
-    let name, found_flag = get_expr_name env expr ~suffix:"" in
+    let { var_name = name }, found_flag = get_expr_name env ~local:false expr in
     if found_flag then name
     else
       let () =
@@ -188,7 +223,8 @@ let translate_mpfi env =
 
 let translate_double env =
   let rec translate fmt expr =
-    let name, found_flag = get_expr_name env expr ~suffix:"d" in
+    let var_info, found_flag = get_expr_name env ~local:true expr in
+    let name = var_info.var_name ^ "d"in
     if found_flag then name
     else
       let () =
@@ -225,7 +261,8 @@ let translate_double env =
 
 let translate_single env =
   let rec translate fmt expr =
-    let name, found_flag = get_expr_name env expr ~suffix:"f" in
+    let var_info, found_flag = get_expr_name env ~local:true expr in
+    let name = var_info.var_name ^ "f" in
     if found_flag then name
     else
       let () =
@@ -271,56 +308,50 @@ let remove_rnd expr =
     | Rounding (rnd, arg) -> remove arg in
   remove expr
 
-let print_init_functions env 
-    ?(double = false) ?(single = false) ?(mpfi = false) fmt =
-  let mp_type, mp_prefix =
-    if mpfi then "mpfi_t", "mpfi" else "mpfr_t", "mpfr" in
-  let c_names_mp = List.map (fun (_, i) -> sprintf "c_%d" i) env.constants in
-  let c_names_double = List.map (fun (_, i) -> sprintf "c_%dd" i) env.constants in
-  let c_names_single = List.map (fun (_, i) -> sprintf "c_%df" i) env.constants in
-  let tmp_names = Lib.init_list env.tmp_max_index (fun i -> sprintf "t_%d" (i + 1)) in
-  let tmp_vars_flag = env.tmp_max_index > 0 in
-  let constants_flag = List.length env.constants > 0 in
-  if tmp_vars_flag then
-    fprintf fmt "static %s %a;@." mp_type (print_list ", ") tmp_names;
-  if constants_flag then begin
-    fprintf fmt "static %s %a;@." mp_type (print_list ", ") c_names_mp;
-    if double then
-      fprintf fmt "static double %a;@." (print_list ", ") c_names_double;
-    if single then
-      fprintf fmt "static float %a;@." (print_list ", ") c_names_single;
-  end;
+let print_init_functions global_env ?(double = false) ?(single = false) ?(mpfi = false) fmt =
+  let mp_type, mp_prefix = if mpfi then "mpfi_t", "mpfi" else "mpfr_t", "mpfr" in
+  let c_names = List.map (fun (_, info) -> info.var_name) global_env.constants in
+  let c_names_double = List.map (fun (_, info) -> info.var_name ^ "d") global_env.constants in
+  let c_names_single = List.map (fun (_, info) -> info.var_name ^ "f") global_env.constants in
+  let global_var_names = List.map (fun var -> var.var_name) global_env.global_vars in
+  let global_vars_flag = List.length global_var_names > 0 in
+  let const_flag = List.length c_names > 0 in
+  if global_vars_flag then
+    fprintf fmt "static %s %a;@." mp_type (print_list ", ") global_var_names;
+  if const_flag then
+    fprintf fmt "static %s %a;@." mp_type (print_list ", ") c_names;
+  if double && List.length c_names_double > 0 then
+    fprintf fmt "static double %a;@." (print_list ", ") c_names_double;
+  if single && List.length c_names_single > 0 then
+    fprintf fmt "static float %a;@." (print_list ", ") c_names_single;
   pp_print_newline fmt ();
   fprintf fmt "void f_init()@.{@.";
-  if tmp_vars_flag then
-    List.iter (fun v -> fprintf fmt "  %s_init(%s);@." mp_prefix v)
-              tmp_names;
-  if constants_flag then
-    List.iter (fun c -> fprintf fmt "  %s_init(%s);@." mp_prefix c)
-              c_names_mp;
-  List.iter
-    (fun (n, i) -> 
-      let f_const = if single then sprintf "&c_%df" i else "NULL" in
-      let d_const = if double then sprintf "&c_%dd" i else "NULL" in
-        fprintf fmt "  init_constants(\"%s\", MPFR_RNDN, %s, %s, c_%d);@."
-          (Num.string_of_num n) f_const d_const i)
-    env.constants;
+  let init_var var =
+    if var.var_prec < 0 then
+      fprintf fmt "  %s_init(%s);@." mp_prefix var.var_name
+    else
+      fprintf fmt "  %s_init2(%s, %d);@." mp_prefix var.var_name var.var_prec in
+  let init_constant (n, info) =
+    let f_const = if single then sprintf "&%sf" info.var_name else "NULL" in
+    let d_const = if double then sprintf "&%sd" info.var_name else "NULL" in
+      fprintf fmt "  init_constants(\"%s\", MPFR_RNDN, %s, %s, %s);@."
+        (Num.string_of_num n) f_const d_const info.var_name in
+  List.iter init_var global_env.global_vars;
+  List.iter init_var (List.map snd global_env.constants);
+  List.iter init_constant global_env.constants;
   fprintf fmt "}@.";
   pp_print_newline fmt ();
   fprintf fmt "void f_clear()@.{@.";
-  if tmp_vars_flag then
-    List.iter (fun v -> fprintf fmt "  %s_clear(%s);@." mp_prefix v)
-              tmp_names;
-  if constants_flag then
-    List.iter (fun c -> fprintf fmt "  %s_clear(%s);@." mp_prefix c)
-              c_names_mp;
+  if global_vars_flag then
+    List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) global_var_names;
+  if const_flag then
+    List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) c_names;
   fprintf fmt "}@."
 
-let print_mp_f env fmt ?(mpfi = false) ?(index = 1) expr =
-  clear_exprs env;
-  env.subexprs_names <- [expr, "r_op"];
+let print_mp_f global_env fmt ?(mpfi = false) ?(index = 1) expr =
+  let env = mk_local_env global_env [expr, mk_var_info "r_op"] in
   let mp_prefix = if mpfi then "mpfi" else "mpfr" in
-  let args = List.map (fun (_, name) -> mp_prefix ^ "_srcptr " ^ name) env.vars in
+  let args = List.map (fun (_, { var_name = name }) -> mp_prefix ^ "_srcptr " ^ name) env.global_env.parameters in
   let body, result_name =
     Lib.write_to_string_result 
       (if mpfi then (translate_mpfi env) else (translate_mpfr env))
@@ -336,28 +367,27 @@ let print_mp_f env fmt ?(mpfi = false) ?(index = 1) expr =
   end;
   fprintf fmt "}@."
 
-let print_double_f env fmt expr =
-  clear_exprs env;
-  let args = List.map (fun (_, name) -> "double " ^ name) env.vars in
+let print_double_f global_env fmt expr =
+  let env = mk_local_env global_env [] in
+  let args = List.map (fun (_, { var_name = name }) -> "double " ^ name ^ "d") env.global_env.parameters in
   let body, result_name =
     Lib.write_to_string_result (translate_double env) expr in
   fprintf fmt "double f_64(%a)@.{@." (print_list ", ") args;
   fprintf fmt "%s@.  return %s;@.}@." body result_name
 
-let print_single_f env fmt expr =
-  clear_exprs env;
-  let args = List.map (fun (_, name) -> "float " ^ name) env.vars in
+let print_single_f global_env fmt expr =
+  let env = mk_local_env global_env []in
+  let args = List.map (fun (_, { var_name = name }) -> "float " ^ name ^ "f") env.global_env.parameters in
   let body, result_name =
     Lib.write_to_string_result (translate_single env) expr in
   fprintf fmt "float f_32(%a)@.{@." (print_list ", ") args;
   fprintf fmt "%s@.  return %s;@.}@." body result_name
 
-let print_init_f_and_mps env fmt 
-      ?(double = false) ?(single = false) ?(mpfi = false) exprs =
+let print_init_f_and_mps global_env fmt ?(double = false) ?(single = false) ?(mpfi = false) exprs =
   let mps = List.mapi 
               (fun i e -> 
-                Lib.write_to_string (print_mp_f env ~mpfi:mpfi ~index:(i + 1)) e) exprs in
-  print_init_functions env fmt ~double:double ~single:single ~mpfi:mpfi;
+                Lib.write_to_string (print_mp_f global_env ~mpfi:mpfi ~index:(i + 1)) e) exprs in
+  print_init_functions global_env fmt ~double ~single ~mpfi;
   pp_print_newline fmt ();
   List.iter (fprintf fmt "%s@.") mps
 
@@ -374,16 +404,19 @@ let generate_error_bounds fmt task =
               [{Interval.low = 1.; Interval.high = 2.}]
     | _ -> vars, bounds in
   let var_names = List.map (fun s -> "v_" ^ ExprOut.fix_name s) task_vars in
-  let env = mk_env (List.combine task_vars var_names) in
-  let expr = remove_rnd task.expression in
+  let var_infos = List.map mk_var_info var_names in
+  let global_env = mk_global_env (List.combine task_vars var_infos) in
+  (* We need to create MPFI functions in a separate global environment to avoid extra global variables *)
+  let global_env_mpfi = mk_global_env (List.combine task_vars var_infos) in
+  let no_rnd_expr = remove_rnd task.expression in
   fprintf fmt "#ifdef USE_MPFI@.";
   fprintf fmt "@.#include \"search_mpfi.h\"@.";
   pp_print_newline fmt ();
-  print_init_f_and_mps env fmt ~double:true ~single:true ~mpfi:true [expr];
+  print_init_f_and_mps global_env_mpfi fmt ~double:true ~single:true ~mpfi:true [no_rnd_expr];
   fprintf fmt "@.#else@.";
   fprintf fmt "@.#include \"search_mpfr.h\"@.";
   pp_print_newline fmt ();
-  print_init_f_and_mps env fmt ~double:true ~single:true ~mpfi:false [expr];
+  print_init_f_and_mps global_env fmt ~double:true ~single:true ~mpfi:false [no_rnd_expr];
   fprintf fmt "@.#endif@.";
   pp_print_newline fmt ();
   let low_str = List.map (fun b -> sprintf "%.20e" b.Interval.low) var_bounds in
@@ -392,9 +425,9 @@ let generate_error_bounds fmt task =
   fprintf fmt "const double high[] = {%a};@." (print_list ", ") high_str;
   fprintf fmt "const char *f_name = \"%s\";@." task.name;
   pp_print_newline fmt ();
-  print_double_f env fmt expr;
+  print_double_f global_env fmt no_rnd_expr;
   pp_print_newline fmt ();
-  print_single_f env fmt expr
+  print_single_f global_env fmt no_rnd_expr
 
 let generate_data_functions fmt task named_exprs =
   let task_vars, var_bounds =
@@ -409,12 +442,13 @@ let generate_data_functions fmt task named_exprs =
               [{Interval.low = 1.; Interval.high = 2.}]
     | _ -> vars, bounds in
   let var_names = List.map (fun s -> "v_" ^ ExprOut.fix_name s) task_vars in
-  let env = mk_env (List.combine task_vars var_names) in
+  let var_infos = List.map mk_var_info var_names in
+  let global_env = mk_global_env (List.combine task_vars var_infos) in
   fprintf fmt "#include \"data_mpfi.h\"@.";
   fprintf fmt "#include \"func.h\"@.";
   pp_print_newline fmt ();
   let expr_names, exprs = List.split named_exprs in
-  print_init_f_and_mps env fmt ~mpfi:true exprs;
+  print_init_f_and_mps global_env fmt ~mpfi:true exprs;
   pp_print_newline fmt ();
   let low_str = List.map (fun b -> sprintf "%.20e" b.Interval.low) var_bounds in
   let high_str = List.map (fun b -> sprintf "%.20e" b.Interval.high) var_bounds in
