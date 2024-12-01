@@ -27,6 +27,8 @@ type var_info = {
 type global_env = {
   mutable constants : (Num.num * var_info) list;
   mutable global_vars : var_info list;
+  (* Prefix for global variables and constants *)
+  name_prefix : string;
   parameters : (string * var_info) list;
 }
 
@@ -45,9 +47,10 @@ let mk_var_info ?(prec = -1) name = {
   var_prec = prec
 }
 
-let mk_global_env parameters = {
+let mk_global_env ~prefix parameters = {
   parameters = parameters;
   constants = [];
+  name_prefix = prefix;
   global_vars = [];
 }
 
@@ -69,7 +72,7 @@ let get_expr_name env ~local expr =
           with Not_found ->
             (* Rational constants are always global *)
             let index = List.length env.global_env.constants in
-            let name = sprintf "c_%d" index in
+            let name = sprintf "%sc_%d" env.global_env.name_prefix index in
             let var = mk_var_info name in
             env.global_env.constants <- (n, var) :: env.global_env.constants;
             var, true
@@ -86,7 +89,7 @@ let get_expr_name env ~local expr =
                 mk_var_info name
               end else begin
                 let index = List.length env.global_env.global_vars in
-                let name = sprintf "t_%d" index in
+                let name = sprintf "%st_%d" env.global_env.name_prefix index in
                 let var = mk_var_info name in
                 env.global_env.global_vars <- var :: env.global_env.global_vars;
                 var
@@ -308,7 +311,7 @@ let remove_rnd expr =
     | Rounding (rnd, arg) -> remove arg in
   remove expr
 
-let print_init_functions global_env ?(double = false) ?(single = false) ?(mpfi = false) fmt =
+let print_init_functions global_env ?(name_prefix = "") ?(double = false) ?(single = false) ?(mpfi = false) fmt =
   let mp_type, mp_prefix = if mpfi then "mpfi_t", "mpfi" else "mpfr_t", "mpfr" in
   let c_names = List.map (fun (_, info) -> info.var_name) global_env.constants in
   let c_names_double = List.map (fun (_, info) -> info.var_name ^ "d") global_env.constants in
@@ -325,7 +328,7 @@ let print_init_functions global_env ?(double = false) ?(single = false) ?(mpfi =
   if single && List.length c_names_single > 0 then
     fprintf fmt "static float %a;@." (print_list ", ") c_names_single;
   pp_print_newline fmt ();
-  fprintf fmt "void f_init()@.{@.";
+  fprintf fmt "void %sf_init()@.{@." name_prefix;
   let init_var var =
     if var.var_prec < 0 then
       fprintf fmt "  %s_init(%s);@." mp_prefix var.var_name
@@ -341,14 +344,14 @@ let print_init_functions global_env ?(double = false) ?(single = false) ?(mpfi =
   List.iter init_constant global_env.constants;
   fprintf fmt "}@.";
   pp_print_newline fmt ();
-  fprintf fmt "void f_clear()@.{@.";
+  fprintf fmt "void %sf_clear()@.{@." name_prefix;
   if global_vars_flag then
     List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) global_var_names;
   if const_flag then
     List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) c_names;
   fprintf fmt "}@."
 
-let print_mp_f global_env fmt ?(mpfi = false) ?(index = 1) expr =
+let print_mp_f global_env base_name fmt ?(mpfi = false) ?(index = 1) expr =
   let env = mk_local_env global_env [expr, mk_var_info "r_op"] in
   let mp_prefix = if mpfi then "mpfi" else "mpfr" in
   let args = List.map (fun (_, { var_name = name }) -> mp_prefix ^ "_srcptr " ^ name) env.global_env.parameters in
@@ -356,7 +359,7 @@ let print_mp_f global_env fmt ?(mpfi = false) ?(index = 1) expr =
     Lib.write_to_string_result 
       (if mpfi then (translate_mpfi env) else (translate_mpfr env))
       expr in
-  let f_name = "f_high" ^ (if index <= 1 then "" else string_of_int index) in
+  let f_name = base_name ^ (if index <= 1 then "" else string_of_int index) in
   fprintf fmt "void %s(%s r_op, %a)@.{@." f_name (mp_prefix ^ "_ptr") (print_list ", ") args;
   fprintf fmt "%s" body;
   if result_name <> "r_op" then begin
@@ -386,10 +389,15 @@ let print_single_f global_env fmt expr =
 let print_init_f_and_mps global_env fmt ?(double = false) ?(single = false) ?(mpfi = false) exprs =
   let mps = List.mapi 
               (fun i e -> 
-                Lib.write_to_string (print_mp_f global_env ~mpfi:mpfi ~index:(i + 1)) e) exprs in
+                Lib.write_to_string (print_mp_f global_env ~mpfi:mpfi ~index:(i + 1) "f_high") e) exprs in
   print_init_functions global_env fmt ~double ~single ~mpfi;
   pp_print_newline fmt ();
   List.iter (fprintf fmt "%s@.") mps
+
+let print_mpfr_representation global_env fmt expr =
+  let f_mpfr = Lib.write_to_string (print_mp_f global_env "f_mpfr" ~mpfi:false ~index:1) expr in
+  print_init_functions global_env fmt ~name_prefix:"mpfr_" ~double:false ~single:false ~mpfi:false;
+  fprintf fmt "@.%s@." f_mpfr
 
 let generate_error_bounds fmt task =
   let task_vars, var_bounds = 
@@ -405,9 +413,10 @@ let generate_error_bounds fmt task =
     | _ -> vars, bounds in
   let var_names = List.map (fun s -> "v_" ^ ExprOut.fix_name s) task_vars in
   let var_infos = List.map mk_var_info var_names in
-  let global_env = mk_global_env (List.combine task_vars var_infos) in
+  let parameters = List.combine task_vars var_infos in
+  let global_env = mk_global_env ~prefix:"" parameters in
   (* We need to create MPFI functions in a separate global environment to avoid extra global variables *)
-  let global_env_mpfi = mk_global_env (List.combine task_vars var_infos) in
+  let global_env_mpfi = mk_global_env ~prefix:"" parameters in
   let no_rnd_expr = remove_rnd task.expression in
   fprintf fmt "#ifdef USE_MPFI@.";
   fprintf fmt "@.#include \"search_mpfi.h\"@.";
@@ -427,7 +436,11 @@ let generate_error_bounds fmt task =
   pp_print_newline fmt ();
   print_double_f global_env fmt no_rnd_expr;
   pp_print_newline fmt ();
-  print_single_f global_env fmt no_rnd_expr
+  print_single_f global_env fmt no_rnd_expr;
+  pp_print_newline fmt ();
+  (* Generate an MPFR representation of the task expression *)
+  (* Note: subnormal numbers are not correctly handled by this representation *)
+  print_mpfr_representation (mk_global_env ~prefix:"m" parameters) fmt task.expression
 
 let generate_data_functions fmt task named_exprs =
   let task_vars, var_bounds =
@@ -443,7 +456,7 @@ let generate_data_functions fmt task named_exprs =
     | _ -> vars, bounds in
   let var_names = List.map (fun s -> "v_" ^ ExprOut.fix_name s) task_vars in
   let var_infos = List.map mk_var_info var_names in
-  let global_env = mk_global_env (List.combine task_vars var_infos) in
+  let global_env = mk_global_env ~prefix:"" (List.combine task_vars var_infos) in
   fprintf fmt "#include \"data_mpfi.h\"@.";
   fprintf fmt "#include \"func.h\"@.";
   pp_print_newline fmt ();
