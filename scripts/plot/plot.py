@@ -76,6 +76,10 @@ parser.add_argument('-t', '--type', default='64',
                     help="default type of variables and rounding operations.\
                           Also controls flags of ErrorBounds.")
 
+parser.add_argument('-d', '--rounding-dir', default='ne',
+                    choices=['ne', 'up', 'down', 'zero'],
+                    help="default rounding direction")
+
 parser.add_argument('-r', '--range',
                     help="redefine the range of input variables")
 
@@ -544,16 +548,17 @@ class FPTaylorTask:
             "--log-append-date", "none"
         ]
 
-        if args.type:
-            rnd_types = {
-                "16": ("float16", "rnd16"),
-                "32": ("float32", "rnd32"), 
-                "64": ("float64", "rnd64"),
-                "real": ("real", "rnd64")
-            }
-            var_type, rnd_type = rnd_types[args.type]
-            self.extra_args += ["--default-var-type", var_type]
-            self.extra_args += ["--default-rnd", rnd_type]
+        rnd_types = {
+            "16": ("float16", "rnd16"),
+            "32": ("float32", "rnd32"), 
+            "64": ("float64", "rnd64"),
+            "real": ("real", "rnd64")
+        }
+        var_type, rnd_type = rnd_types[args.type]
+        if args.rounding_dir != 'ne':
+            rnd_type += "_" + args.rounding_dir.replace('zero', '0')
+        self.extra_args += ["--default-var-type", var_type]
+        self.extra_args += ["--default-rnd", rnd_type]
 
         if args.error == 'abs':
             self.extra_args += ["-abs", "true", "-rel", "false", "-ulp", "false"]
@@ -586,6 +591,8 @@ class InputFileTask:
             "real": ("real", "rnd64", "real")
         }
         var_type, rnd_type, fpcore_type = rnd_types[args.type]
+        if args.rounding_dir != 'ne':
+            rnd_type += "_" + args.rounding_dir.replace('zero', '0')
         cmd += ["--default-var-type", var_type]
         cmd += ["--default-rnd", rnd_type]
 
@@ -645,6 +652,8 @@ for input_file in args.input:
         base_fname += "-mpfr{0}".format(args.mpfr_prec)
     if args.mpfi:
         base_fname += "-mpfi"
+    if args.rounding_dir != 'ne':
+        base_fname += "-" + args.rounding_dir
 
     error_bounds_file_template = None
     common.remove_all(plot_tmp, base_fname + "*")

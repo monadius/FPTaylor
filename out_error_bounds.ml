@@ -351,8 +351,9 @@ let print_init_functions global_env ~name_prefix ?(double = false) ?(single = fa
     List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) c_names;
   fprintf fmt "}@."
 
-let print_mp_f global_env base_name fmt ?(mpfi = false) ?(index = 1) expr =
-  let env = mk_local_env global_env [expr, mk_var_info "r_op"] in
+let print_mp_f global_env base_name ?(result_in_rop = true) ?(mpfi = false) ?(index = 1) fmt expr =
+  (* result_in_rop = false when we want to round the result to a custom precision *)
+  let env = mk_local_env global_env (if result_in_rop then [expr, mk_var_info "r_op"] else []) in
   let mp_prefix = if mpfi then "mpfi" else "mpfr" in
   let args = List.map (fun (_, { var_name = name }) -> mp_prefix ^ "_srcptr " ^ name) env.global_env.parameters in
   let body, result_name =
@@ -394,10 +395,11 @@ let print_init_f_and_mps global_env fmt ?double ?single ?mpfi exprs =
   pp_print_newline fmt ();
   List.iter (fprintf fmt "%s@.") mps
 
-let print_mpfr_representation global_env fmt expr =
-  let f_mpfr = Lib.write_to_string (print_mp_f global_env "f_low" ~mpfi:false ~index:1) expr in
+let print_mpfr_low global_env fmt expr =
+  let f_low = Lib.write_to_string
+    (print_mp_f global_env "f_low" ~result_in_rop:false ~mpfi:false ~index:1) expr in
   print_init_functions global_env ~name_prefix:"f_low" ~double:false ~single:false ~mpfi:false fmt;
-  fprintf fmt "@.%s@." f_mpfr
+  fprintf fmt "@.%s@." f_low
 
 let print_init_and_clear fmt name_prefixes =
   fprintf fmt "void f_init() {@.";
@@ -448,7 +450,7 @@ let generate_error_bounds fmt task =
   pp_print_newline fmt ();
   (* Generate an MPFR representation of the task expression *)
   (* Note: subnormal numbers are not correctly handled by this representation *)
-  print_mpfr_representation (mk_global_env ~prefix:"m" parameters) fmt task.expression;
+  print_mpfr_low (mk_global_env ~prefix:"m" parameters) fmt task.expression;
   print_init_and_clear fmt ["f_high"; "f_low"]
 
 let generate_data_functions fmt task named_exprs =
