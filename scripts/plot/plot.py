@@ -68,6 +68,9 @@ parser.add_argument('-c', '--config', action='append', nargs='+',
 parser.add_argument('-e', '--error', choices=['abs', 'rel', 'ulp'], default='abs',
                     help="error type (overrides error types defined in configuration files)")
 
+parser.add_argument('-m', '--mpfr', action='store_true',
+                    help="use MPFR for computing low precision results in ErrorBounds (works for any rounding modes)")
+
 parser.add_argument('-t', '--type', default='64',
                     choices=['16', '32', '64', 'real'], 
                     help="default type of variables and rounding operations.\
@@ -197,6 +200,9 @@ def run_error_bounds(input_file):
         cmd_args += ["-f"]
     elif args.type == "real":
         cmd_args += ["-r"]
+
+    if args.mpfr:
+        cmd_args += ["-m"]
     
     if args.mpfr_prec:
         cmd_args += ["-p", str(args.mpfr_prec)]
@@ -633,6 +639,8 @@ for input_file in args.input:
     base_fname = basename(fname) + "-" + args.error
     if args.range:
         base_fname += "-range"
+    if args.mpfr:
+        base_fname += "-mpfr_low"
     if args.mpfr_prec:
         base_fname += "-mpfr{0}".format(args.mpfr_prec)
     if args.mpfi:

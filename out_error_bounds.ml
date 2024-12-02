@@ -311,7 +311,7 @@ let remove_rnd expr =
     | Rounding (rnd, arg) -> remove arg in
   remove expr
 
-let print_init_functions global_env ?(name_prefix = "") ?(double = false) ?(single = false) ?(mpfi = false) fmt =
+let print_init_functions global_env ~name_prefix ?(double = false) ?(single = false) ?(mpfi = false) fmt =
   let mp_type, mp_prefix = if mpfi then "mpfi_t", "mpfi" else "mpfr_t", "mpfr" in
   let c_names = List.map (fun (_, info) -> info.var_name) global_env.constants in
   let c_names_double = List.map (fun (_, info) -> info.var_name ^ "d") global_env.constants in
@@ -328,7 +328,7 @@ let print_init_functions global_env ?(name_prefix = "") ?(double = false) ?(sing
   if single && List.length c_names_single > 0 then
     fprintf fmt "static float %a;@." (print_list ", ") c_names_single;
   pp_print_newline fmt ();
-  fprintf fmt "void %sf_init()@.{@." name_prefix;
+  fprintf fmt "void %s_init() {@." name_prefix;
   let init_var var =
     if var.var_prec < 0 then
       fprintf fmt "  %s_init(%s);@." mp_prefix var.var_name
@@ -344,7 +344,7 @@ let print_init_functions global_env ?(name_prefix = "") ?(double = false) ?(sing
   List.iter init_constant global_env.constants;
   fprintf fmt "}@.";
   pp_print_newline fmt ();
-  fprintf fmt "void %sf_clear()@.{@." name_prefix;
+  fprintf fmt "void %s_clear() {@." name_prefix;
   if global_vars_flag then
     List.iter (fun name -> fprintf fmt "  %s_clear(%s);@." mp_prefix name) global_var_names;
   if const_flag then
@@ -360,7 +360,7 @@ let print_mp_f global_env base_name fmt ?(mpfi = false) ?(index = 1) expr =
       (if mpfi then (translate_mpfi env) else (translate_mpfr env))
       expr in
   let f_name = base_name ^ (if index <= 1 then "" else string_of_int index) in
-  fprintf fmt "void %s(%s r_op, %a)@.{@." f_name (mp_prefix ^ "_ptr") (print_list ", ") args;
+  fprintf fmt "void %s(%s r_op, %a) {@." f_name (mp_prefix ^ "_ptr") (print_list ", ") args;
   fprintf fmt "%s" body;
   if result_name <> "r_op" then begin
     if mpfi then 
@@ -375,29 +375,37 @@ let print_double_f global_env fmt expr =
   let args = List.map (fun (_, { var_name = name }) -> "double " ^ name ^ "d") env.global_env.parameters in
   let body, result_name =
     Lib.write_to_string_result (translate_double env) expr in
-  fprintf fmt "double f_64(%a)@.{@." (print_list ", ") args;
-  fprintf fmt "%s@.  return %s;@.}@." body result_name
+  fprintf fmt "double f_64(%a) {@." (print_list ", ") args;
+  fprintf fmt "%s  return %s;@.}@." body result_name
 
 let print_single_f global_env fmt expr =
   let env = mk_local_env global_env []in
   let args = List.map (fun (_, { var_name = name }) -> "float " ^ name ^ "f") env.global_env.parameters in
   let body, result_name =
     Lib.write_to_string_result (translate_single env) expr in
-  fprintf fmt "float f_32(%a)@.{@." (print_list ", ") args;
-  fprintf fmt "%s@.  return %s;@.}@." body result_name
+  fprintf fmt "float f_32(%a) {@." (print_list ", ") args;
+  fprintf fmt "%s  return %s;@.}@." body result_name
 
-let print_init_f_and_mps global_env fmt ?(double = false) ?(single = false) ?(mpfi = false) exprs =
+let print_init_f_and_mps global_env fmt ?double ?single ?mpfi exprs =
   let mps = List.mapi 
               (fun i e -> 
-                Lib.write_to_string (print_mp_f global_env ~mpfi:mpfi ~index:(i + 1) "f_high") e) exprs in
-  print_init_functions global_env fmt ~double ~single ~mpfi;
+                Lib.write_to_string (print_mp_f global_env ?mpfi ~index:(i + 1) "f_high") e) exprs in
+  print_init_functions global_env ~name_prefix:"f_high" ?double ?single ?mpfi fmt;
   pp_print_newline fmt ();
   List.iter (fprintf fmt "%s@.") mps
 
 let print_mpfr_representation global_env fmt expr =
-  let f_mpfr = Lib.write_to_string (print_mp_f global_env "f_mpfr" ~mpfi:false ~index:1) expr in
-  print_init_functions global_env fmt ~name_prefix:"mpfr_" ~double:false ~single:false ~mpfi:false;
+  let f_mpfr = Lib.write_to_string (print_mp_f global_env "f_low" ~mpfi:false ~index:1) expr in
+  print_init_functions global_env ~name_prefix:"f_low" ~double:false ~single:false ~mpfi:false fmt;
   fprintf fmt "@.%s@." f_mpfr
+
+let print_init_and_clear fmt name_prefixes =
+  fprintf fmt "void f_init() {@.";
+  List.iter (fun name -> fprintf fmt "  %s_init();@." name) name_prefixes;
+  fprintf fmt "}@.@.";
+  fprintf fmt "void f_clear() {@.";
+  List.iter (fun name -> fprintf fmt "  %s_clear();@." name) name_prefixes;
+  fprintf fmt "}@."
 
 let generate_error_bounds fmt task =
   let task_vars, var_bounds = 
@@ -440,7 +448,8 @@ let generate_error_bounds fmt task =
   pp_print_newline fmt ();
   (* Generate an MPFR representation of the task expression *)
   (* Note: subnormal numbers are not correctly handled by this representation *)
-  print_mpfr_representation (mk_global_env ~prefix:"m" parameters) fmt task.expression
+  print_mpfr_representation (mk_global_env ~prefix:"m" parameters) fmt task.expression;
+  print_init_and_clear fmt ["f_high"; "f_low"]
 
 let generate_data_functions fmt task named_exprs =
   let task_vars, var_bounds =
@@ -475,4 +484,5 @@ let generate_data_functions fmt task named_exprs =
   fprintf fmt "const int n_funcs = %d;@." (List.length f_names);
   fprintf fmt "const F_HIGH funcs[] = {%a};@." (print_list ", ") f_names;
   fprintf fmt "const char *expression_string = \"%s\";@."
-    (ExprOut.Info.print_str (remove_rnd task.expression))
+    (ExprOut.Info.print_str (remove_rnd task.expression));
+  print_init_and_clear fmt ["f_high"]
