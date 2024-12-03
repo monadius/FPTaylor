@@ -1,0 +1,5 @@
+Variables
+  float64 x in [3e-290, 3.421e-290];
+
+Expressions
+  r rnd64= sqrt(3 * x);

@@ -1,0 +1,12 @@
+Variables
+  x in [1, 3.5];
+
+Expressions
+  res1 rnd= 3 * x;
+  res2 rnd= 5 * x;
+  res3 rnd= res1 - res2;
+  res4 rnd= x * x;
+  res5 rnd= x * x - x * x / 3;
+  res6 rnd= x * x - x * x * x;
+  res7 rnd= 117 * x;
+  res_sin_cos rnd= sin(x) - cos(x);

@@ -6,6 +6,7 @@ import re
 import glob
 import shutil
 import argparse
+import textwrap
 import logging
 
 sys.path.append('..')
@@ -55,106 +56,85 @@ def files_from_template(fname_template):
     return result
 
 # Parse arguments
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Runs FPTaylor with different configurations and plots error model functions.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""\
+        Examples:
+        # Plot errors for the sqroot function with default configuration
+        # (float64 input variables and rounding to nearest)
+        ./plot.py examples/sqroot.txt
+                            
+        # Plot errors for the sqroot function with 64-bit input variables and
+        # rounding up (the --mpfr flag is required for the low precision
+        # function to be computed correctly with this rounding mode)
+        ./plot.py examples/sqroot.txt --rounding-dir up --mpfr
+        """))
 
-parser = argparse.ArgumentParser(
-    description="Runs FPTaylor with different configurations and plots error model functions.")
-
-parser.add_argument('--debug', action='store_true',
-                    help="debug mode")
-
-parser.add_argument('-c', '--config', action='append', nargs='+',
-                    help="add a configuration file (or several files)")
-
-parser.add_argument('-e', '--error', choices=['abs', 'rel', 'ulp'], default='abs',
-                    help="error type (overrides error types defined in configuration files)")
-
-parser.add_argument('-m', '--mpfr', action='store_true',
-                    help="use MPFR for computing low precision results in ErrorBounds (works for any rounding modes)")
-
-parser.add_argument('-t', '--type', default='64',
-                    choices=['16', '32', '64', 'real'], 
-                    help="default type of variables and rounding operations.\
-                          Also controls flags of ErrorBounds.")
-
-parser.add_argument('-d', '--rounding-dir', default='ne',
-                    choices=['ne', 'up', 'down', 'zero'],
-                    help="default rounding direction")
-
-parser.add_argument('-r', '--range',
-                    help="redefine the range of input variables")
-
-parser.add_argument('-v', '--verbosity', type=int, default=1,
-                    help="FPTaylor's verbosity level")
-
-parser.add_argument('-s', '--samples', type=int, default=1000,
-                    help="number of sample points (intervals) for plots")
-
-parser.add_argument('--mpfr-prec', type=int,
-                    help="MPFR precision in ErrorBounds")
-
-parser.add_argument('--mpfi', action='store_true',
-                    help="use MPFI in ErrorBounds")
-
-parser.add_argument('--show-extra-errors', action='store_true',
-                    help="explicitly plot all extra error terms (total2, etc.)")
-
-parser.add_argument('--subexprs', action='store_true',
-                    help="produce plots for all subexpressions")
-
-parser.add_argument('--gappa', action='store_true',
-                    help="produce Gappa plots")
-
-parser.add_argument('--gappa-segments', type=int, default=200,
-                    help="number of subintervals for Gappa plots")
-
-parser.add_argument('--segments', type=int, default=500,
-                    help="number of segments for ErrorBounds")
-
-parser.add_argument('--err-samples', type=int, default=10000,
-                    help="number of samples for ErrorBounds")
-
-parser.add_argument('--adaptive', action='store_true',
-                    help="produce model data with an adaptive algorithm")
-
-parser.add_argument('--data-plot-style', choices=['stack', 'lines'],
-                    default='stack',
-                    help="specifies how to plot ErrorBounds results")
-
-parser.add_argument('--width', type=int,
-                    help="plot width")
-
-parser.add_argument('--height', type=int,
-                    help="plot height")
-
-parser.add_argument('--gnuplot', choices=['png', 'html'],
-                    help="produce plots with gnuplot")
-
-parser.add_argument('--update-cache', action='store_true',
-                    help="do not use cached files")
-
-parser.add_argument('input', nargs='+',
-                    help="input FPTaylor files")
-
-args = parser.parse_args()
-
-if args.debug:
-    log.setLevel(logging.DEBUG)
-
-if not args.config:
-    args.config = [None]
-
-log.debug("tmp_dir = {0}".format(plot_tmp))
-log.debug("cache_dir = {0}\n".format(plot_cache))
-
-if not os.path.isdir(output_path):
-    os.makedirs(output_path)
-if not os.path.isdir(plot_tmp):
-    os.makedirs(plot_tmp)
-if not os.path.isdir(plot_cache):
-    os.makedirs(plot_cache)
-
-common.remove_all(plot_tmp, "*")
-common.remove_all(fptaylor_tmp, "*")
+    parser.add_argument('--debug', action='store_true',
+                        help="debug mode")
+    parser.add_argument('-c', '--config', action='append', nargs='+',
+                        help="add a configuration file (or several files)")
+    parser.add_argument('-e', '--error', choices=['abs', 'rel', 'ulp'], default='abs',
+                        help="error type (overrides error types defined in configuration files)")
+    parser.add_argument('-m', '--mpfr', action='store_true',
+                        help="use MPFR for computing low precision results in ErrorBounds (works for any rounding modes)")
+    parser.add_argument('-t', '--type', default='64',
+                        choices=['16', '32', '64', 'real'], 
+                        help="default type of variables and rounding operations.\
+                            Also controls flags of ErrorBounds.")
+    parser.add_argument('-d', '--rounding-dir', default='ne',
+                        choices=['ne', 'up', 'down', 'zero'],
+                        help="default rounding direction")
+    parser.add_argument('-r', '--range',
+                        help="redefine the range of input variables")
+    parser.add_argument('-v', '--verbosity', type=int, default=1,
+                        help="FPTaylor's verbosity level")
+    parser.add_argument('-s', '--samples', type=int, default=1000,
+                        help="number of sample points (intervals) for plots")
+    parser.add_argument('--mpfr-prec', type=int,
+                        help="MPFR precision in ErrorBounds")
+    parser.add_argument('--mpfi', action='store_true',
+                        help="use MPFI in ErrorBounds")
+    parser.add_argument('--show-extra-errors', action='store_true',
+                        help="explicitly plot all extra error terms (total2, etc.)")
+    parser.add_argument('--subexprs', action='store_true',
+                        help="produce plots for all subexpressions")
+    parser.add_argument('--gappa', action='store_true',
+                        help="produce Gappa plots")
+    parser.add_argument('--gappa-segments', type=int, default=200,
+                        help="number of subintervals for Gappa plots")
+    parser.add_argument('--segments', type=int, default=500,
+                        help="number of segments for ErrorBounds")
+    parser.add_argument('--err-samples', type=int, default=10000,
+                        help="number of samples for ErrorBounds")
+    parser.add_argument('--adaptive', action='store_true',
+                        help="produce model data with an adaptive algorithm")
+    parser.add_argument('--data-plot-style', choices=['stack', 'lines'],
+                        default='stack',
+                        help="specifies how to plot ErrorBounds results")
+    parser.add_argument('--width', type=int,
+                        help="plot width")
+    parser.add_argument('--height', type=int,
+                        help="plot height")
+    parser.add_argument('--gnuplot', choices=['png', 'html'],
+                        help="produce plots with gnuplot")
+    parser.add_argument('--update-cache', action='store_true',
+                        help="do not use cached files")
+    parser.add_argument('input', nargs='+',
+                        help="input FPTaylor files")
+    # Parse and validate arguments
+    args = parser.parse_args()
+    if args.debug:
+        log.setLevel(logging.DEBUG)
+    if not args.config:
+        args.config = [None]
+    if args.rounding_dir != 'ne' and not args.mpfr:
+        log.error(f"The --mpfr flag is required for the low precision \
+                  function to be computed correctly with rounding mode '{args.rounding_dir}'")
+        sys.exit(1)
+    return args
 
 
 def basename(fname):
@@ -178,7 +158,7 @@ def restrict_input_vars(fname, range):
                                     repl)])
 
 
-def run_error_bounds(input_file):
+def run_error_bounds(args, input_file):
     exe_file = os.path.join(plot_tmp, "a.out")
     out_file = os.path.join(plot_tmp, basename(input_file) + "-data.txt")
     common.remove_files([exe_file, out_file])
@@ -228,7 +208,7 @@ def run_error_bounds(input_file):
     return out_file
 
 
-def run_data_mpfi(input_file):
+def run_data_mpfi(args,input_file):
     exe_file = os.path.join(plot_tmp, "a.out")
     out_file = os.path.join(plot_tmp, basename(input_file) + "-model-data.txt")
     common.remove_files([exe_file, out_file])
@@ -366,7 +346,8 @@ class DataFile:
 # Tasks
 
 class PlotTask:
-    def __init__(self, input_name, base_name):
+    def __init__(self, args, input_name, base_name):
+        self.args = args
         self.input_name = input_name
         self.base_name = base_name
         self.model_files = []
@@ -380,6 +361,7 @@ class PlotTask:
         self.model_files.append((fname, style))
 
     def create_gnuplot_file(self, out_file):
+        args = self.args
         script_file = os.path.join(plot_tmp, self.base_name + ".gnuplot")
         if args.width:
             width = int(args.width)
@@ -482,7 +464,7 @@ class PlotTask:
 
     def run_gnuplot(self, out_path, image_name):
         image_name = "[gnuplot]" + image_name
-        if args.gnuplot == "html":
+        if self.args.gnuplot == "html":
             image_name += ".html"
         else:
             image_name += ".png"
@@ -491,6 +473,7 @@ class PlotTask:
         common.run(cmd, log=log)
 
     def run_racket(self, out_path, image_name):
+        args = self.args
         image_file = os.path.join(out_path, image_name + ".png")
         cmd = [racket, racket_plot,
                "--out", image_file]
@@ -516,6 +499,7 @@ class PlotTask:
 
     def plot(self):
         # Run plot-data.rkt
+        args = self.args
         image_name = self.base_name
         if args.type:
             image_name += "-" + args.type
@@ -531,7 +515,8 @@ class PlotTask:
 
 
 class FPTaylorTask:
-    def __init__(self, input_files):
+    def __init__(self, args, input_files):
+        self.args = args
         self.cfg_files = []
         if isinstance(input_files, list):
             self.input_files = list(input_files)
@@ -567,18 +552,20 @@ class FPTaylorTask:
         else:
             self.extra_args += ["-abs", "false", "-rel", "false", "-ulp", "true"]
 
-    def run(self, args):
+    def run(self, export_args):
         cfg_args = []
         for cfg in self.cfg_files:
             cfg_args += ["-c", cfg]
-        cmd = [fptaylor] + self.input_files + cfg_args + args + self.extra_args
+        cmd = [fptaylor] + self.input_files + cfg_args + export_args + self.extra_args
         common.run(cmd, log=log)
 
 class InputFileTask:
-    def __init__(self, input_file):
+    def __init__(self, args, input_file):
+        self.args = args
         self.input_file = input_file
     
     def create_fpcore_file(self, fname):
+        args = self.args
         out_file = os.path.join(plot_tmp, basename(fname) + ".fpcore")
         cmd = [fptaylor_export, fname,
                "-o", out_file,
@@ -604,6 +591,7 @@ class InputFileTask:
             log.error("Input file does not exist: {0}".format(self.input_file))
             sys.exit(1)
         
+        args = self.args
         out_path = os.path.join(plot_tmp, os.path.basename(self.input_file))
         shutil.copy(self.input_file, out_path)
         
@@ -622,10 +610,12 @@ class InputFileTask:
 
 
 class GappaTask:
-    def __init__(self, input_file):
+    def __init__(self, args, input_file):
+        self.args = args
         self.input_file = input_file
 
     def run(self):
+        args = self.args
         gappa_data = os.path.join(base_path, "gappa_data.py")
         if args.error != "ulp":
             error = args.error
@@ -640,89 +630,105 @@ class GappaTask:
                "--", self.input_file]
         common.run(cmd, log=log)
 
+def main():
+    args = parse_args()
+    log.debug("tmp_dir = {0}".format(plot_tmp))
+    log.debug("cache_dir = {0}\n".format(plot_cache))
 
-for input_file in args.input:
-    fname = InputFileTask(input_file).run()
-    base_fname = basename(fname) + "-" + args.error
-    if args.range:
-        base_fname += "-range"
-    if args.mpfr:
-        base_fname += "-mpfr_low"
-    if args.mpfr_prec:
-        base_fname += "-mpfr{0}".format(args.mpfr_prec)
-    if args.mpfi:
-        base_fname += "-mpfi"
-    if args.rounding_dir != 'ne':
-        base_fname += "-" + args.rounding_dir
+    if not os.path.isdir(output_path):
+        os.makedirs(output_path)
+    if not os.path.isdir(plot_tmp):
+        os.makedirs(plot_tmp)
+    if not os.path.isdir(plot_cache):
+        os.makedirs(plot_cache)
 
-    error_bounds_file_template = None
-    common.remove_all(plot_tmp, base_fname + "*")
-    
-    plot_tasks = dict()
+    common.remove_all(plot_tmp, "*")
+    common.remove_all(fptaylor_tmp, "*")
 
-    for cfg_files in args.config:
-        fptaylor_task = FPTaylorTask(fname)
+    for input_file in args.input:
+        fname = InputFileTask(args, input_file).run()
+        base_fname = basename(fname) + "-" + args.error
+        if args.range:
+            base_fname += "-range"
+        if args.mpfr:
+            base_fname += "-mpfr_low"
+        if args.mpfr_prec:
+            base_fname += "-mpfr{0}".format(args.mpfr_prec)
+        if args.mpfi:
+            base_fname += "-mpfi"
+        if args.rounding_dir != 'ne':
+            base_fname += "-" + args.rounding_dir
 
-        if not cfg_files:
-            # default config
-            cfg_name = "default"
-        else:
-            cfg_name = "-".join([basename(cfg) for cfg in cfg_files])
-            for cfg_file in cfg_files:
-                if not os.path.isfile(cfg_file):
-                    log.error(
-                        "Configuration file does not exist: {0}".format(cfg_file))
-                    sys.exit(1)
-                fptaylor_task.cfg_files.append(cfg_file)
+        error_bounds_file_template = None
+        common.remove_all(plot_tmp, base_fname + "*")
+        
+        plot_tasks = dict()
 
-        export_args = []
+        for cfg_files in args.config:
+            fptaylor_task = FPTaylorTask(args, fname)
 
-        if not error_bounds_file_template:
-            error_bounds_file_template = os.path.join(plot_tmp, base_fname + "-{task}.c")
-            export_args += ["--export-error-bounds", error_bounds_file_template]
+            if not cfg_files:
+                # default config
+                cfg_name = "default"
+            else:
+                cfg_name = "-".join([basename(cfg) for cfg in cfg_files])
+                for cfg_file in cfg_files:
+                    if not os.path.isfile(cfg_file):
+                        log.error(
+                            "Configuration file does not exist: {0}".format(cfg_file))
+                        sys.exit(1)
+                    fptaylor_task.cfg_files.append(cfg_file)
 
-        c_model_file_template = os.path.join(
-            plot_tmp, "model-" + base_fname + "-" + cfg_name + "-{task}.c")
-        export_args += ["--export-error-bounds-data", c_model_file_template]
+            export_args = []
 
-        fptaylor_task.run(export_args)
+            if not error_bounds_file_template:
+                error_bounds_file_template = os.path.join(plot_tmp, base_fname + "-{task}.c")
+                export_args += ["--export-error-bounds", error_bounds_file_template]
 
-        for task, model_file in files_from_template(c_model_file_template).items():
-            # Adjust names in the output model file
-            common.replace_in_file(model_file,
-                                   [(r"f_names\[\] =", '"([^"]*)"', r'"\1-{0}"'.format(cfg_name))])
-            data_file = run_data_mpfi(model_file)
+            c_model_file_template = os.path.join(
+                plot_tmp, "model-" + base_fname + "-" + cfg_name + "-{task}.c")
+            export_args += ["--export-error-bounds-data", c_model_file_template]
+
+            fptaylor_task.run(export_args)
+
+            for task, model_file in files_from_template(c_model_file_template).items():
+                # Adjust names in the output model file
+                common.replace_in_file(model_file,
+                                    [(r"f_names\[\] =", '"([^"]*)"', r'"\1-{0}"'.format(cfg_name))])
+                data_file = run_data_mpfi(args, model_file)
+                if task not in plot_tasks:
+                    plot_tasks[task] = PlotTask(args, base_fname, "[{0}]{1}".format(task, base_fname))
+                plot_task = plot_tasks[task]
+                plot_task.add_model_file(data_file)
+                if args.subexprs:
+                    title = common.find_in_file(model_file, 
+                                                r'expression_string = "([^"]*)";',
+                                                groups=1)
+                    if title:
+                        plot_task.title = title
+
+        # ErrorBounds
+        for task, input_file in files_from_template(error_bounds_file_template).items(): 
+            data_file = run_error_bounds(args, input_file)
             if task not in plot_tasks:
-                plot_tasks[task] = PlotTask(base_fname, "[{0}]{1}".format(task, base_fname))
-            plot_task = plot_tasks[task]
-            plot_task.add_model_file(data_file)
-            if args.subexprs:
-                title = common.find_in_file(model_file, 
-                                            r'expression_string = "([^"]*)";',
-                                            groups=1)
-                if title:
-                    plot_task.title = title
+                log.warning("Undefined task '{0}' for the data file '{1}'".format(task, input_file))
+                plot_tasks[task] = PlotTask(args, base_fname, "[{0}]{1}".format(task, base_fname))
+            plot_tasks[task].add_error_file(data_file)
 
-    # ErrorBounds
-    for task, input_file in files_from_template(error_bounds_file_template).items(): 
-        data_file = run_error_bounds(input_file)
-        if task not in plot_tasks:
-            log.warning("Undefined task '{0}' for the data file '{1}'".format(task, input_file))
-            plot_tasks[task] = PlotTask(base_fname, "[{0}]{1}".format(task, base_fname))
-        plot_tasks[task].add_error_file(data_file)
+        # Gappa
+        if args.gappa:
+            gappa = GappaTask(args, fname)
+            gappa.run()
+            results = files_from_template(os.path.join(plot_tmp, "gappa-data-{task}.txt"))
+            for task, data_file in results.items():
+                if task not in plot_tasks:
+                    log.warning("Undefined task '{0}' for the data file '{1}'".format(task, data_file))
+                    plot_tasks[task] = PlotTask(args, base_fname, "[{0}]{1}".format(task, base_fname))
+                plot_tasks[task].add_error_file(data_file, style="lines")
 
-    # Gappa
-    if args.gappa:
-        gappa = GappaTask(fname)
-        gappa.run()
-        results = files_from_template(os.path.join(plot_tmp, "gappa-data-{task}.txt"))
-        for task, data_file in results.items():
-            if task not in plot_tasks:
-                log.warning("Undefined task '{0}' for the data file '{1}'".format(task, data_file))
-                plot_tasks[task] = PlotTask(base_fname, "[{0}]{1}".format(task, base_fname))
-            plot_tasks[task].add_error_file(data_file, style="lines")
+        # plot-fptaylor.rkt
+        for task in plot_tasks.values():
+            task.plot()
 
-    # plot-fptaylor.rkt
-    for task in plot_tasks.values():
-        task.plot()
-
+if __name__ == "__main__":
+    main()
