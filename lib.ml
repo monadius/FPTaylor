@@ -62,6 +62,16 @@ let rec init_list n f =
     if n < 0 then acc
     else init (n - 1) ((f n) :: acc) in
   init (n - 1) []
+
+let group_by f xs =
+  let groups = Hashtbl.create 10 in
+  let keys = ref [] in
+  List.iter (fun x ->
+    let key = f x in
+    let ys = try Hashtbl.find groups key with Not_found -> keys := key :: !keys; [] in
+    Hashtbl.replace groups key (x :: ys)
+  ) xs;
+  List.map (fun k -> (k, List.rev (Hashtbl.find groups k))) !keys
  
 (* -------------------------------------------------------------------------- *)
 (* Option type operations                                                     *)

@@ -36,6 +36,8 @@ val enumerate : int -> 'a list -> (int * 'a) list
 
 val init_list : int -> (int -> 'a) -> 'a list
 
+val group_by : ('a -> 'b) -> 'a list -> ('b * 'a list) list
+
 (* -------------------------------------------------------------------------- *)
 (* Option type operations                                                     *)
 (* -------------------------------------------------------------------------- *)
