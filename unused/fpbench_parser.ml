@@ -312,7 +312,7 @@ let translate_precision prec =
 
 let rec translate_properties data env s_exprs =
   match s_exprs with
-  | Symbol name :: arg :: rest when Lib.starts_with name ~prefix:":" ->
+  | Symbol name :: arg :: rest when String.starts_with name ~prefix:":" ->
     let data = begin
       match (name, arg) with
       | ":name", String str -> 

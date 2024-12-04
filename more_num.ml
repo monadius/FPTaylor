@@ -45,14 +45,6 @@ let decode_num_str =
       String.sub str 0 i,
       String.sub str (i + 1) (n - i - 1) 
   in
-  let starts_with str prefix =
-    let len_str = String.length str and
-        len_p = String.length prefix in
-    if len_p > len_str then
-      false
-    else
-      String.sub str 0 len_p = prefix
-  in
   let extract_exp str =
     let s1, s2 = split_at str 'p' in
     if s2 <> "" then
@@ -73,7 +65,7 @@ let decode_num_str =
   | _ -> failwith "Fractional part is not allowed for the given base"
   in
   fun str ->
-    let hex = starts_with str "0x" || starts_with str "-0x" in
+    let hex = String.starts_with str ~prefix:"0x" || String.starts_with str ~prefix:"-0x" in
     let s_significand, base, s_exp = extract_exp str in
     let s_int, s_frac = split_at s_significand '.' in
     let exp_shift = compute_exp_shift hex base s_frac in

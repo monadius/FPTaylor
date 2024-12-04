@@ -87,10 +87,10 @@ let parse_config_file ?(init = false) fname =
        let line = String.trim line in
        if line = "" then ()
        else if is_comment line then begin
-           if Lib.starts_with line ~prefix:"##" then
+           if String.starts_with line ~prefix:"##" then
              doc_comment := String.sub line 2 (String.length line - 2)
          end
-       else if Lib.starts_with line ~prefix:"[" then
+       else if String.starts_with line ~prefix:"[" then
          parse_short_name line
        else begin
          parse_option c !short_name !doc_comment line;

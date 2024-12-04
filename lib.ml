@@ -57,12 +57,6 @@ let enumerate =
   fun start list ->
   enum [] start list
 
-let rec init_list n f =
-  let rec init n acc =
-    if n < 0 then acc
-    else init (n - 1) ((f n) :: acc) in
-  init (n - 1) []
-
 let group_by f xs =
   let groups = Hashtbl.create 10 in
   let keys = ref [] in
@@ -74,45 +68,8 @@ let group_by f xs =
   List.map (fun k -> (k, List.rev (Hashtbl.find groups k))) !keys
  
 (* -------------------------------------------------------------------------- *)
-(* Option type operations                                                     *)
-(* -------------------------------------------------------------------------- *)
-
-let is_none = function
-  | None -> true
-  | Some _ -> false
-
-let is_some = function
-  | None -> false
-  | Some _ -> true
-
-let option_lift f ~default:v = function
-  | None -> v
-  | Some x -> f x
-
-let option_default ~default:v = function
-  | None -> v
-  | Some x -> x
-
-let option_value = function
-  | None -> failwith "option_value: None"
-  | Some x -> x
-
-let rec option_first = function
-  | [] -> failwith "option_first: all None"
-  | None :: rest -> option_first rest
-  | Some x :: _ -> x
-       
-(* -------------------------------------------------------------------------- *)
 (* String operations                                                          *)
 (* -------------------------------------------------------------------------- *)
-
-let implode l = List.fold_left (^) "" l
-
-let explode s =
-  let rec exap n l =
-    if n < 0 then l else
-      exap (n - 1) ((String.sub s n 1)::l) in
-  exap (String.length s - 1) []
 
 let print_list fp sep =
   let rec print = function
@@ -120,12 +77,6 @@ let print_list fp sep =
     | [s] -> fp s
     | s1 :: s2 :: rest -> fp s1; sep(); print (s2 :: rest) in
   print
-
-let starts_with str ~prefix =
-  let n = String.length prefix in
-  if n > String.length str then false
-  else
-    String.sub str 0 n = prefix
 
 let slice ~first ?last str =
   let n = String.length str in

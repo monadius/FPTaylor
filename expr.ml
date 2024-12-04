@@ -202,13 +202,13 @@ let rec vars_in_expr e =
   | _ -> []
 
 let is_ref_var = function
-| Var v when Lib.starts_with v ~prefix:"ref~" -> true
+| Var v when String.starts_with v ~prefix:"ref~" -> true
 | _ -> false
 
 let mk_ref_var i = Var ("ref~" ^ string_of_int i)
 
 let index_of_ref_var = function
-| Var v when Lib.starts_with v ~prefix:"ref~" -> int_of_string (Lib.slice ~first:4 v)
+| Var v when String.starts_with v ~prefix:"ref~" -> int_of_string (Lib.slice ~first:4 v)
 | _ -> failwith "ref_var_index: not a reference"
 
 (* Finds common subexpressions and returns a list of expressions

@@ -68,7 +68,7 @@ let find_error_result ty result =
 let find_error ty default result =
   try
     let r = find_error_result ty result in
-    Lib.option_default ~default r.error
+    Option.value ~default r.error
   with Not_found -> default
 
 let open_file, close_file, close_all, get_file_formatter =

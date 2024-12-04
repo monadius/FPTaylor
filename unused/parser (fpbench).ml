@@ -40,7 +40,7 @@ let parse_fpbench_file fname bench_name =
   | End_of_file -> List.rev acc
   in
   let find_data ds name =
-    try List.find (fun d -> Lib.starts_with d.Fpbench_parser.name ~prefix:name) ds
+    try List.find (fun d -> String.starts_with d.Fpbench_parser.name ~prefix:name) ds
     with Not_found ->
       Log.warning "File %s does not contain the benchmark %s" fname name;
       List.hd ds

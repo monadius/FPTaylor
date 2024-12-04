@@ -34,39 +34,15 @@ val (--) : int -> int -> int list
 
 val enumerate : int -> 'a list -> (int * 'a) list
 
-val init_list : int -> (int -> 'a) -> 'a list
-
 val group_by : ('a -> 'b) -> 'a list -> ('b * 'a list) list
 
-(* -------------------------------------------------------------------------- *)
-(* Option type operations                                                     *)
-(* -------------------------------------------------------------------------- *)
-
-val is_none : 'a option -> bool
-
-val is_some : 'a option -> bool
-
-val option_lift : ('a -> 'b) -> default:'b -> 'a option -> 'b
-
-val option_default : default:'a -> 'a option -> 'a
-
-val option_value : 'a option -> 'a
-
-val option_first : 'a option list -> 'a
-                                             
 (* -------------------------------------------------------------------------- *)
 (* String operations                                                          *)
 (* -------------------------------------------------------------------------- *)
 
-val implode : string list -> string
-
-val explode : string -> string list
-
 val print_list : ('a -> unit) -> (unit -> 'b) -> 'a list -> unit
 
 val slice : first:int -> ?last:int -> string -> string
-
-val starts_with : string -> prefix:string -> bool
 
 val concat_env_paths : string list -> string
 

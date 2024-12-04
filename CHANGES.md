@@ -1,7 +1,7 @@
 FPTaylor 0.9.5
 --------------
 
-- OCaml 4.07.0 is now required to build FPTaylor.
+- OCaml 4.13.0 is now required to build FPTaylor.
 
 - Improved error bounds for expressions with directed rounding.
 

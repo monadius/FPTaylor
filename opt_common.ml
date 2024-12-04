@@ -57,13 +57,13 @@ let get_float ?default strs name =
   let n = String.length pat in
   let r = Str.regexp pat in
   let rec find = function
-    | [] ->
-       if Lib.is_none default then raise Not_found
-       else Lib.option_value default
-    | str :: t ->
-      let i = try Str.search_forward r str 0 with Not_found -> -1 in
-      if i == 0 then
-        float_of_string (Str.string_after str n)
-      else
-        find t in
-        find strs
+  | [] -> (match default with
+           | None -> raise Not_found
+           | Some v -> v)
+  | str :: t ->
+    let i = try Str.search_forward r str 0 with Not_found -> -1 in
+    if i == 0 then
+      float_of_string (Str.string_after str n)
+    else
+      find t in
+  find strs
