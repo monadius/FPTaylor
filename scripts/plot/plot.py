@@ -163,7 +163,7 @@ def run_error_bounds(args, input_file):
     out_file = os.path.join(plot_tmp, basename(input_file) + "-data.txt")
     common.remove_files([exe_file, out_file])
 
-    src_files = ["search_mp_main.c"]
+    src_files = ["mp_common.c", "search_mp_main.c"]
     if args.mpfi:
         src_files += ["search_mpfi.c"]
     else:
@@ -175,7 +175,7 @@ def run_error_bounds(args, input_file):
     compile_cmd += src_files + [input_file]
     if args.mpfi:
         compile_cmd += ["-DUSE_MPFI", "-lmpfi"]
-    compile_cmd += ["-lm", "-lmpfr", "-lgmp"]
+    compile_cmd += ["-lm", "-lmpfi", "-lmpfr", "-lgmp"]
 
     cmd_args = ["-n", str(args.segments),
                 "-s", str(args.err_samples)]
@@ -213,7 +213,7 @@ def run_data_mpfi(args,input_file):
     out_file = os.path.join(plot_tmp, basename(input_file) + "-model-data.txt")
     common.remove_files([exe_file, out_file])
 
-    src_files = ["data_mpfi.c", "func.c", "data_mpfi_main.c"]
+    src_files = ["mp_common.c", "data_mpfi.c", "func.c", "data_mpfi_main.c"]
     src_files = [os.path.join(error_bounds_path, f) for f in src_files]
 
     compile_cmd = ["gcc", "-o", exe_file, "-O3",

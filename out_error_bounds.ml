@@ -343,9 +343,10 @@ let print_init_functions env ~name fmt =
     fprintf fmt "  init_constants(\"%s\", MPFR_RNDN, %s);@."
       (Num.string_of_num n)
       (match info.var_type with
-       | TypeSingle -> sprintf "&%s, NULL, NULL" info.var_name
-       | TypeDouble -> sprintf "NULL, &%s, NULL" info.var_name
-       | TypeMPFI | TypeMPFR -> sprintf "NULL, NULL, %s" info.var_name)
+       | TypeSingle -> sprintf "&%s, NULL, NULL, NULL" info.var_name
+       | TypeDouble -> sprintf "NULL, &%s, NULL, NULL" info.var_name
+       | TypeMPFR -> sprintf "NULL, NULL, %s, NULL" info.var_name
+       | TypeMPFI -> sprintf "NULL, NULL, NULL, %s" info.var_name)
   );
   fprintf fmt "}@.@.";
   (* Clear variables and constants *)
@@ -422,16 +423,15 @@ let generate_error_bounds fmt task =
       (match ret_expr with
         | Some expr -> [expr, mk_var_info "rop" ty]
         | None -> []) in
-  fprintf fmt "#ifdef USE_MPFI@.";
-  fprintf fmt "@.#include \"search_mpfi.h\"@.@.";
+  fprintf fmt "@.#include \"mp_common.h\"@.@.";
+  fprintf fmt "#ifdef USE_MPFI@.@.";
   (* MPFI f_high *)
   print_expr_functions 
     ~name:"f_high" 
     (print_multiprecision ~mpfi:true) 
     (env "" ~ret_expr:no_rnd_expr TypeMPFI) 
     fmt no_rnd_expr;
-  fprintf fmt "@.#else@.";
-  fprintf fmt "@.#include \"search_mpfr.h\"@.@.";
+  fprintf fmt "@.#else@.@.";
   (* MPFR f_high *)
   print_expr_functions 
     ~name:"f_high" 
@@ -502,7 +502,7 @@ let generate_data_functions fmt task named_exprs =
   let n = List.length exprs in
   let f_names = List.init n (fun i -> "f_high" ^ string_of_int (i + 1)) in
   fprintf fmt "const int n_funcs = %d;@." (List.length f_names);
-  fprintf fmt "const F_HIGH funcs[] = {%a};@." (print_list ", ") f_names;
+  fprintf fmt "const F_MPFI funcs[] = {%a};@." (print_list ", ") f_names;
   fprintf fmt "const char *expression_string = \"%s\";@."
     (ExprOut.Info.print_str (remove_rnd task.expression));
   pp_print_newline fmt ();
